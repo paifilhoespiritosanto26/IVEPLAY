@@ -29,7 +29,11 @@ class MainActivity : Activity() {
     private fun init(title: String) {
         player?.release(); player = null
         root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bg); setPadding(24, 18, 24, 18) }
-        setContentView(ScrollView(this).apply { fillViewport = true; addView(root) })
+        setContentView(ScrollView(this).apply {
+    isFillViewport = true
+    addView(root)
+})
+
         val heading = TextView(this).apply { text = title; textSize = 26f; setTextColor(Color.WHITE); typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER; setPadding(0, 10, 0, 22) }
         root.addView(heading)
     }
