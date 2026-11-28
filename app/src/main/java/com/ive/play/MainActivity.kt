@@ -506,7 +506,7 @@ class MainActivity : Activity() {
             val scoreText = if (live && goalsHome is Number && goalsAway is Number)
                 "  ${goalsHome.toInt()} × ${goalsAway.toInt()}" else ""
             val card = text(
-                "${if (live) "🔴 " else "⚽ "}$homeTeam × $awayTeam$scoreText\\n$competition • $kickoff (Brasília)",
+                "${if (live) "🔴 " else "⚽ "}$homeTeam × $awayTeam$scoreText\n$competition • $kickoff (Brasília)",
                 14f, true
             ).apply {
                 setPadding(dp(12), dp(10), dp(12), dp(10))
