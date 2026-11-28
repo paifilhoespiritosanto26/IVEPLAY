@@ -155,14 +155,47 @@ class MainActivity : Activity() {
             scaleType = ImageView.ScaleType.FIT_CENTER
         }
         val shortLandscape = resources.configuration.screenHeightDp < 420
-        root.addView(logo, LinearLayout.LayoutParams(-1, dp(if (shortLandscape) 56 else 110)))
-        root.addView(text("IVEPLAY", if (shortLandscape) 24f else 32f, true, gold).apply { gravity = Gravity.CENTER })
-        root.addView(text("Seu entretenimento em um só lugar", 13f, false, muted).apply { gravity = Gravity.CENTER })
-        gap(if (shortLandscape) 8 else 24)
+        // A two-column sign-in keeps the form usable on short landscape phones.
+        val loginColumns = LinearLayout(this).apply {
+            orientation = if (shortLandscape) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        root.addView(loginColumns, LinearLayout.LayoutParams(-1, -2))
+        val branding = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+        }
+        loginColumns.addView(branding, if (shortLandscape) {
+            LinearLayout.LayoutParams(0, -1, 0.9f)
+        } else {
+            LinearLayout.LayoutParams(-1, -2)
+        })
+        branding.addView(logo, LinearLayout.LayoutParams(-1, dp(if (shortLandscape) 80 else 110)))
+        branding.addView(text("IVEPLAY", if (shortLandscape) 24f else 32f, true, gold).apply {
+            gravity = Gravity.CENTER
+        })
+        branding.addView(text("Seu entretenimento em um só lugar", 13f, false, muted).apply {
+            gravity = Gravity.CENTER
+            textAlignment = View.TEXT_ALIGNMENT_CENTER
+        })
+        val loginFields = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            if (shortLandscape) setPadding(dp(12), dp(4), dp(4), dp(4))
+            else setPadding(0, dp(20), 0, 0)
+        }
+        val formScroll = ScrollView(this).apply {
+            isFillViewport = false
+            addView(loginFields)
+        }
+        loginColumns.addView(formScroll, if (shortLandscape) {
+            LinearLayout.LayoutParams(0, dp(320), 1.5f)
+        } else {
+            LinearLayout.LayoutParams(-1, -2)
+        })
         val tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        root.addView(tabs)
+        loginFields.addView(tabs)
         val form = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(form)
+        loginFields.addView(form)
         var xtream = true
         fun renderForm() {
             tabs.removeAllViews()
