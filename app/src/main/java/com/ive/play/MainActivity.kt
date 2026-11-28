@@ -47,6 +47,9 @@ class MainActivity : Activity() {
     private var currentPage = "Início"
     private var playingKind: String? = null
     private var playbackOrigin: String? = null
+    private var sportsChannelPageIndex = 0
+    private var sportsChannelQuery = ""
+    private var sportsChannelSelectedUrl: String? = null
     private var resumePlaybackOnStart = false
     private val sportsRefreshHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var sportsRefreshTask: Runnable? = null
@@ -487,7 +490,7 @@ class MainActivity : Activity() {
         gap(8)
         val channelRows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(channelRows)
-        var pageIndex = 0
+        var pageIndex = sportsChannelPageIndex
         fun showChannels(query: String) {
             channelRows.removeAllViews()
             val matching = channels.filter {
@@ -501,6 +504,7 @@ class MainActivity : Activity() {
             val pageSize = 40
             val totalPages = ((matching.size + pageSize - 1) / pageSize).coerceAtLeast(1)
             pageIndex = pageIndex.coerceIn(0, totalPages - 1)
+            sportsChannelPageIndex = pageIndex
             channelRows.addView(text("Canais ${pageIndex * pageSize + 1}–${minOf((pageIndex + 1) * pageSize, matching.size)} de ${matching.size} • Página ${pageIndex + 1}/${totalPages}", 12f, false, gold))
             matching.drop(pageIndex * pageSize).take(pageSize).forEach { entry ->
                 val item = text("▶  ${entry.name}\n${entry.group}", 15f, true).apply {
@@ -508,7 +512,12 @@ class MainActivity : Activity() {
                     background = shape(panel, 12, Color.DKGRAY)
                     isFocusable = true
                     isClickable = true
-                    setOnClickListener { play(entry) }
+                    setOnClickListener {
+                        sportsChannelQuery = search.text.toString()
+                        sportsChannelPageIndex = pageIndex
+                        sportsChannelSelectedUrl = entry.url
+                        play(entry)
+                    }
                     setOnFocusChangeListener { view, focused ->
                         view.background = shape(if (focused) Color.rgb(58, 38, 24) else panel,
                             12, if (focused) orange else Color.DKGRAY)
@@ -517,6 +526,7 @@ class MainActivity : Activity() {
                     }
                 }
                 channelRows.addView(item, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+                if (entry.url == sportsChannelSelectedUrl) item.post { item.requestFocus() }
             }
             if (totalPages > 1) {
                 val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -528,7 +538,7 @@ class MainActivity : Activity() {
                     background = shape(panel, 10, gold)
                     alpha = if (pageIndex > 0) 1f else 0.4f
                     setOnClickListener {
-                        if (pageIndex > 0) { pageIndex--; showChannels(search.text.toString()) }
+                        if (pageIndex > 0) { pageIndex--; sportsChannelPageIndex = pageIndex; showChannels(search.text.toString()) }
                     }
                 }
                 val next = text("PRÓXIMA ▶", 14f, true, gold).apply {
@@ -539,7 +549,7 @@ class MainActivity : Activity() {
                     background = shape(panel, 10, gold)
                     alpha = if (pageIndex < totalPages - 1) 1f else 0.4f
                     setOnClickListener {
-                        if (pageIndex < totalPages - 1) { pageIndex++; showChannels(search.text.toString()) }
+                        if (pageIndex < totalPages - 1) { pageIndex++; sportsChannelPageIndex = pageIndex; showChannels(search.text.toString()) }
                     }
                 }
                 controls.addView(previous, LinearLayout.LayoutParams(0, -2, 1f))
@@ -551,11 +561,18 @@ class MainActivity : Activity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 pageIndex = 0
-                showChannels(s?.toString() ?: "")
+                sportsChannelPageIndex = 0
+                sportsChannelQuery = s?.toString() ?: ""
+                showChannels(sportsChannelQuery)
             }
             override fun afterTextChanged(s: Editable?) {}
         })
-        showChannels("")
+        val restoredQuery = sportsChannelQuery
+        if (restoredQuery.isNotEmpty()) {
+            search.setText(restoredQuery)
+            pageIndex = sportsChannelPageIndex
+            showChannels(restoredQuery)
+        } else showChannels("")
 
         gap(12)
         button("VOLTAR À PROGRAMAÇÃO", panel) { sportsSchedule() }
