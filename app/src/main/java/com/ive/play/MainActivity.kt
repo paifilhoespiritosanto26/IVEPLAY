@@ -217,7 +217,10 @@ class MainActivity : Activity() {
     }
 
     private fun enterCatalog() {
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        val isTelevision = packageManager.hasSystemFeature("android.software.leanback") ||
+            packageManager.hasSystemFeature("android.hardware.type.television")
+        requestedOrientation = if (isTelevision) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         home()
     }
 
@@ -799,7 +802,7 @@ class MainActivity : Activity() {
         gap(16)
         root.addView(text("${entry.kind}  •  ${entry.group}", 15f, false, muted))
         gap(18)
-        button("VOLTAR PARA ${entry.kind.uppercase()}") { catalog(entry.kind) }
+        button("VOLTAR PARA ${entry.kind.uppercase()}") { if (entry.kind == "TV ao Vivo") liveCatalog() else catalog(entry.kind) }
         button("INÍCIO", panel) { home() }
     }
 
