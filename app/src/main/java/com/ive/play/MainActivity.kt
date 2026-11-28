@@ -46,6 +46,7 @@ class MainActivity : Activity() {
     private var drawerOpen = false
     private var currentPage = "Início"
     private var playingKind: String? = null
+    private var playbackOrigin: String? = null
     private var resumePlaybackOnStart = false
     private val sportsRefreshHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var sportsRefreshTask: Runnable? = null
@@ -1348,8 +1349,10 @@ class MainActivity : Activity() {
             return
         }
         if (entry.url.isBlank()) { toast("Conteúdo sem endereço de reprodução"); return }
-        // Dedicated landscape playback screen: prioritize video over scrolling UI.
+        // Remember the originating page so Back returns to the sports channel list.
+        val origin = currentPage
         begin(entry.name, menu = false, scrollable = false)
+        playbackOrigin = origin
         root.setPadding(dp(6), dp(4), dp(6), dp(6))
         playingKind = entry.kind
         val view = PlayerView(this).apply {
@@ -1389,7 +1392,8 @@ class MainActivity : Activity() {
                 setTextColor(if (focused) Color.BLACK else orange)
             }
             setOnClickListener {
-                if (entry.kind == "TV ao Vivo") liveCatalog() else catalog(entry.kind)
+                if (playbackOrigin == "Canais esportivos") sportsChannelsPage()
+                else if (entry.kind == "TV ao Vivo") liveCatalog() else catalog(entry.kind)
             }
         }
         playbackActions.addView(backAction, LinearLayout.LayoutParams(dp(115), dp(42)))
@@ -1433,7 +1437,13 @@ class MainActivity : Activity() {
         super.onStop()
     }
 
-    override fun onDestroy() { player?.release(); player = null; imageLoader.shutdownNow(); super.onDestroy() }
+    override fun onDestroy() {
+        sportsRefreshTask?.let { sportsRefreshHandler.removeCallbacks(it) }
+        sportsRefreshTask = null
+        player?.release(); player = null
+        imageLoader.shutdownNow()
+        super.onDestroy()
+    }
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         when {
@@ -1445,6 +1455,7 @@ class MainActivity : Activity() {
     }
 
     private fun liveCatalogIfChannelOrHome() {
-        if (playingKind == "TV ao Vivo") liveCatalog() else home()
+        if (playbackOrigin == "Canais esportivos") sportsChannelsPage()
+        else if (playingKind == "TV ao Vivo") liveCatalog() else home()
     }
 }
