@@ -120,7 +120,10 @@ class MainActivity : Activity() {
     }
 
     private fun loginScreen() {
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        val isTelevision = packageManager.hasSystemFeature("android.software.leanback") ||
+            packageManager.hasSystemFeature("android.hardware.type.television")
+        requestedOrientation = if (isTelevision) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         begin("Login", false)
         root.gravity = Gravity.CENTER_HORIZONTAL
         val logo = ImageView(this).apply {
