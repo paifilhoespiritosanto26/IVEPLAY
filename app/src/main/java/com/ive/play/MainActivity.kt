@@ -913,7 +913,6 @@ class MainActivity : Activity() {
                 setOnClickListener { navigate(page) }
             })
         }
-        val featuredNames = listOf("globo", "record", "sbt", "band", "redetv")
         fun cleanChannelName(name: String): String =
             name.trim().replace(Regex("""^\\d+[\\s._:|\\-]*"""), "")
                 .trim().lowercase(java.util.Locale.ROOT)
@@ -921,16 +920,25 @@ class MainActivity : Activity() {
                 .trim()
         fun featuredRank(name: String): Int {
             val clean = cleanChannelName(name)
-            val normalized = clean.replace(" ", "")
-            return featuredNames.indexOfFirst { channel ->
-                val alias = if (channel == "redetv") listOf("redetv", "redetv!", "rede tv") else listOf(channel)
-                alias.any { candidate ->
-                    val target = candidate.replace(" ", "")
-                    normalized == target || normalized.startsWith("$target ") ||
-                        (normalized.startsWith(target) &&
-                            normalized.drop(target.length).firstOrNull()?.let { !it.isLetter() } == true)
-                }
-            }.let { if (it < 0) Int.MAX_VALUE else it }
+            // Match exact broadcaster names and common stream-quality suffixes,
+            // without accidentally promoting unrelated channels (e.g. GloboNews).
+            val broadcaster = clean.replace(Regex("""[!]+"""), "").trim()
+            val names = listOf("globo", "record", "sbt", "band", "rede tv", "redetv")
+            val suffixes = setOf("", "hd", "fhd", "full hd", "sd", "4k", "uhd", "h265", "hevc", "1080p", "720p")
+            val rank = names.indexOfFirst { namePart ->
+                broadcaster == namePart || (
+                    broadcaster.startsWith("$namePart ") &&
+                    broadcaster.removePrefix("$namePart ").trim() in suffixes
+                )
+            }
+            return when (rank) {
+                0 -> 0
+                1 -> 1
+                2 -> 2
+                3 -> 3
+                4, 5 -> 4
+                else -> Int.MAX_VALUE
+            }
         }
         val channels = items.filter { it.kind == "TV ao Vivo" }.sortedWith(
             compareBy<MediaEntry> { featuredRank(it.name) }
