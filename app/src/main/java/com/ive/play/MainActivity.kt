@@ -374,63 +374,64 @@ class MainActivity : Activity() {
         gap(22)
         root.addView(text("Categorias", 21f, true))
         gap(10)
-        // Soft, translucent category panels on the dark IVEPLAY background.
+        // Circular neon category buttons, inspired by the approved IVEPLAY preview.
+        // Horizontal scrolling keeps all five buttons accessible on smaller phones.
         val categories = listOf(
             Triple("TV ao Vivo", R.drawable.ive_category_tv, Color.rgb(255, 109, 48)),
             Triple("Filmes", R.drawable.ive_category_film, Color.rgb(67, 152, 255)),
-            Triple("Séries", R.drawable.ive_category_series, Color.rgb(177, 116, 255)),
-            Triple("Esportes", R.drawable.ive_category_sports, Color.rgb(54, 205, 143)),
-            Triple("Infantil", R.drawable.ive_category_kids, Color.rgb(255, 170, 88))
+            Triple("Séries", R.drawable.ive_category_series, Color.rgb(198, 79, 255)),
+            Triple("Esportes", R.drawable.ive_category_sports, Color.rgb(66, 231, 93)),
+            Triple("Infantil", R.drawable.ive_category_kids, Color.rgb(255, 67, 158))
         )
-        categories.chunked(2).forEach { pair ->
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            pair.forEach { (page, iconRes, accent) ->
-                fun tileBackground(focused: Boolean): GradientDrawable =
-                    GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(
-                        Color.argb(if (focused) 105 else 56, Color.red(accent), Color.green(accent), Color.blue(accent)),
-                        Color.argb(240, 19, 19, 26)
-                    )).apply {
-                        cornerRadius = dp(16).toFloat()
-                        setStroke(dp(if (focused) 2 else 1),
-                            if (focused) accent else Color.argb(105, Color.red(accent), Color.green(accent), Color.blue(accent)))
-                    }
-                val tile = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER
-                    background = tileBackground(false)
-                    isFocusable = true
-                    isClickable = true
-                    contentDescription = "Abrir $page"
-                    setOnFocusChangeListener { view, focused ->
-                        view.background = tileBackground(focused)
-                    }
-                    setOnClickListener { navigate(page) }
-                }
-                val iconBadge = LinearLayout(this).apply {
-                    gravity = Gravity.CENTER
-                    background = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
-                        setColor(Color.argb(75, Color.red(accent), Color.green(accent), Color.blue(accent)))
-                        setStroke(dp(1), Color.argb(155, Color.red(accent), Color.green(accent), Color.blue(accent)))
-                    }
-                }
-                iconBadge.addView(ImageView(this).apply {
-                    setImageResource(iconRes)
-                    setColorFilter(accent)
-                    contentDescription = null
-                    isFocusable = false
-                }, LinearLayout.LayoutParams(dp(29), dp(29)))
-                tile.addView(iconBadge, LinearLayout.LayoutParams(dp(49), dp(49)).apply {
-                    rightMargin = dp(12)
-                })
-                tile.addView(text(page, 16f, true))
-                row.addView(tile, LinearLayout.LayoutParams(0, dp(92), 1f).apply {
-                    setMargins(dp(4), dp(4), dp(4), dp(4))
-                })
-            }
-            if (pair.size == 1) row.addView(View(this), LinearLayout.LayoutParams(0, dp(92), 1f))
-            root.addView(row)
+        val circleSize = if (resources.configuration.screenHeightDp < 420) 112 else 148
+        val categoryStrip = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(5), dp(8), dp(5), dp(8))
         }
+        categories.forEach { (page, iconRes, accent) ->
+            fun circleBackground(focused: Boolean): GradientDrawable =
+                GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(
+                    Color.argb(if (focused) 190 else 120, Color.red(accent), Color.green(accent), Color.blue(accent)),
+                    Color.argb(245, 9, 9, 16)
+                )).apply {
+                    shape = GradientDrawable.OVAL
+                    setStroke(dp(if (focused) 4 else 2), accent)
+                }
+            val circle = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                background = circleBackground(false)
+                isFocusable = true
+                isClickable = true
+                contentDescription = "Abrir $page"
+                elevation = dp(5).toFloat()
+                setOnFocusChangeListener { view, focused ->
+                    view.background = circleBackground(focused)
+                    view.scaleX = if (focused) 1.06f else 1f
+                    view.scaleY = if (focused) 1.06f else 1f
+                }
+                setOnClickListener { navigate(page) }
+            }
+            circle.addView(ImageView(this).apply {
+                setImageResource(iconRes)
+                setColorFilter(Color.WHITE)
+                contentDescription = null
+                isFocusable = false
+            }, LinearLayout.LayoutParams(dp(circleSize / 3), dp(circleSize / 3)))
+            circle.addView(text(page, if (circleSize < 130) 13f else 16f, true).apply {
+                gravity = Gravity.CENTER
+                setPadding(dp(4), dp(6), dp(4), 0)
+            })
+            categoryStrip.addView(circle, LinearLayout.LayoutParams(dp(circleSize), dp(circleSize)).apply {
+                setMargins(dp(7), dp(5), dp(7), dp(5))
+            })
+        }
+        root.addView(HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            isFillViewport = false
+            addView(categoryStrip)
+        }, LinearLayout.LayoutParams(-1, -2))
         gap(18)
         if (items.isEmpty()) {
             root.addView(text("Conecte sua lista autorizada para mostrar canais, filmes e séries.", 15f, false, muted))
