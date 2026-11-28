@@ -487,6 +487,7 @@ class MainActivity : Activity() {
         gap(8)
         val channelRows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(channelRows)
+        var pageIndex = 0
         fun showChannels(query: String) {
             channelRows.removeAllViews()
             val matching = channels.filter {
@@ -497,10 +498,11 @@ class MainActivity : Activity() {
                 channelRows.addView(text("Nenhum canal encontrado.", 14f, false, muted))
                 return
             }
-            if (matching.size > 250) {
-                channelRows.addView(text("Exibindo 250 de ${matching.size} canais. Refine a busca.", 12f, false, muted))
-            }
-            matching.take(250).forEach { entry ->
+            val pageSize = 40
+            val totalPages = ((matching.size + pageSize - 1) / pageSize).coerceAtLeast(1)
+            pageIndex = pageIndex.coerceIn(0, totalPages - 1)
+            channelRows.addView(text("Canais ${pageIndex * pageSize + 1}–${minOf((pageIndex + 1) * pageSize, matching.size)} de ${matching.size} • Página ${pageIndex + 1}/${totalPages}", 12f, false, gold))
+            matching.drop(pageIndex * pageSize).take(pageSize).forEach { entry ->
                 val item = text("▶  ${entry.name}\n${entry.group}", 15f, true).apply {
                     setPadding(dp(14), dp(12), dp(14), dp(12))
                     background = shape(panel, 12, Color.DKGRAY)
@@ -516,10 +518,39 @@ class MainActivity : Activity() {
                 }
                 channelRows.addView(item, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
             }
+            if (totalPages > 1) {
+                val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                val previous = text("◀ ANTERIOR", 14f, true, gold).apply {
+                    gravity = Gravity.CENTER
+                    isFocusable = pageIndex > 0
+                    isClickable = pageIndex > 0
+                    setPadding(dp(12), dp(14), dp(12), dp(14))
+                    background = shape(panel, 10, gold)
+                    alpha = if (pageIndex > 0) 1f else 0.4f
+                    setOnClickListener {
+                        if (pageIndex > 0) { pageIndex--; showChannels(search.text.toString()) }
+                    }
+                }
+                val next = text("PRÓXIMA ▶", 14f, true, gold).apply {
+                    gravity = Gravity.CENTER
+                    isFocusable = pageIndex < totalPages - 1
+                    isClickable = pageIndex < totalPages - 1
+                    setPadding(dp(12), dp(14), dp(12), dp(14))
+                    background = shape(panel, 10, gold)
+                    alpha = if (pageIndex < totalPages - 1) 1f else 0.4f
+                    setOnClickListener {
+                        if (pageIndex < totalPages - 1) { pageIndex++; showChannels(search.text.toString()) }
+                    }
+                }
+                controls.addView(previous, LinearLayout.LayoutParams(0, -2, 1f))
+                controls.addView(next, LinearLayout.LayoutParams(0, -2, 1f))
+                channelRows.addView(controls)
+            }
         }
         search.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                pageIndex = 0
                 showChannels(s?.toString() ?: "")
             }
             override fun afterTextChanged(s: Editable?) {}
