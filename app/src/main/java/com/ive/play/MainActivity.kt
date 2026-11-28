@@ -467,22 +467,24 @@ class MainActivity : Activity() {
     }
 
     // Four-column live-TV view: navigation, groups, channels, preview.
+    // Independently scrolling channel/category lists: no nested ScrollView gesture conflicts.
     private fun liveCatalog() {
         begin("TV ao Vivo", false)
         val screen = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        root.addView(screen, LinearLayout.LayoutParams(-1, dp(440)))
+        root.addView(screen, LinearLayout.LayoutParams(-1, dp(420)))
         val nav = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0); background = shape(panel, 10) }
-        val groupsView = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0) }
-        val channelsView = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0) }
+        val groupsList = ListView(this).apply { dividerHeight = dp(4); setBackgroundColor(bg); isFocusable = true }
+        val channelsList = ListView(this).apply { dividerHeight = dp(4); setBackgroundColor(bg); isFocusable = true }
         val preview = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0) }
-        screen.addView(nav, LinearLayout.LayoutParams(0, -1, 1.15f))
-        screen.addView(ScrollView(this).apply { addView(groupsView) }, LinearLayout.LayoutParams(0, -1, 1.5f))
-        screen.addView(ScrollView(this).apply { addView(channelsView) }, LinearLayout.LayoutParams(0, -1, 2.1f))
-        screen.addView(preview, LinearLayout.LayoutParams(0, -1, 3.1f))
-        nav.addView(text("IVEPLAY", 18f, true, orange))
+        screen.addView(ScrollView(this).apply { addView(nav) }, LinearLayout.LayoutParams(0, -1, 1.2f))
+        screen.addView(groupsList, LinearLayout.LayoutParams(0, -1, 1.6f))
+        screen.addView(channelsList, LinearLayout.LayoutParams(0, -1, 2.2f))
+        screen.addView(preview, LinearLayout.LayoutParams(0, -1, 3.2f))
+        nav.addView(text("IVEPLAY", 17f, true, orange))
         listOf("Início", "TV ao Vivo", "Filmes", "Séries", "Esportes", "Infantil", "Favoritos", "Histórico", "Configurações").forEach { page ->
             nav.addView(text(page, 12f, page == "TV ao Vivo", if (page == "TV ao Vivo") orange else Color.WHITE).apply {
                 setPadding(dp(6), dp(10), 0, dp(10))
+                isFocusable = true
                 setOnClickListener { navigate(page) }
             })
         }
@@ -492,13 +494,13 @@ class MainActivity : Activity() {
         var selected: MediaEntry? = null
         val playerView = PlayerView(this).apply { useController = true; setBackgroundColor(Color.BLACK) }
         val playerTitle = text("Selecione um canal", 15f, true, orange)
-        val epg = text("Programação EPG não disponível nesta versão", 12f, false, muted)
         preview.addView(text("PRÉ-VISUALIZAÇÃO", 14f, true, orange))
-        preview.addView(playerView, LinearLayout.LayoutParams(-1, dp(210)).apply { topMargin = dp(10) })
+        preview.addView(playerView, LinearLayout.LayoutParams(-1, dp(190)).apply { topMargin = dp(10) })
         preview.addView(playerTitle)
-        preview.addView(epg)
+        preview.addView(text("Programação EPG não disponível nesta versão", 12f, false, muted))
         preview.addView(text("TELA CHEIA  ▶", 13f, true, orange).apply {
             setPadding(0, dp(14), 0, dp(10))
+            isFocusable = true
             setOnClickListener { selected?.let { play(it) } }
         })
         fun showPreview(entry: MediaEntry) {
@@ -506,6 +508,7 @@ class MainActivity : Activity() {
             playerTitle.text = entry.name
             player?.release()
             player = null
+            playerView.player = null
             if (entry.url.isBlank()) { toast("Canal sem endereço de reprodução"); return }
             try {
                 player = ExoPlayer.Builder(this).build().also {
@@ -516,34 +519,19 @@ class MainActivity : Activity() {
                 }
             } catch (_: Exception) { toast("Não foi possível abrir a pré-visualização") }
         }
-        fun renderChannels() {
-            channelsView.removeAllViews()
-            channelsView.addView(text("CANAIS", 15f, true, orange))
+        fun refreshChannels() {
             val matches = channels.filter { selectedGroup == null || it.group.ifBlank { "Outros" } == selectedGroup }
-            if (matches.isEmpty()) channelsView.addView(text("Nenhum canal nesta categoria", 12f, false, muted))
-            matches.forEach { entry ->
-                channelsView.addView(text("▶  " + entry.name, 12f, false).apply {
-                    setPadding(dp(6), dp(10), dp(2), dp(10))
-                    background = shape(panel, 7)
-                    setOnClickListener { showPreview(entry) }
-                }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(5) })
-            }
-
+            channelsList.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, matches.map { "▶  " + it.name })
+            channelsList.setOnItemClickListener { _, _, position, _ -> showPreview(matches[position]) }
+            channelsList.setSelection(0)
         }
-        fun renderGroups() {
-            groupsView.removeAllViews()
-            groupsView.addView(text("CATEGORIAS", 15f, true, orange))
-            val choices = listOf("Todos os Canais" to null) + groups.map { it to it }
-            choices.forEach { (label, group) ->
-                groupsView.addView(text(label, 12f, selectedGroup == group, if (selectedGroup == group) orange else Color.WHITE).apply {
-                    setPadding(dp(6), dp(10), 0, dp(10))
-                    background = shape(if (selectedGroup == group) Color.rgb(52, 29, 18) else panel, 7)
-                    setOnClickListener { selectedGroup = group; renderGroups(); renderChannels() }
-                }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(5) })
-            }
+        val choices = listOf("Todos os Canais" to null) + groups.map { it to it }
+        groupsList.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, choices.map { it.first })
+        groupsList.setOnItemClickListener { _, _, position, _ ->
+            selectedGroup = choices[position].second
+            refreshChannels()
         }
-        renderGroups()
-        renderChannels()
+        refreshChannels()
     }
 
     private fun catalog(page: String) {
@@ -576,6 +564,11 @@ class MainActivity : Activity() {
                     setPadding(dp(12), dp(9), dp(4), dp(9))
                     maxLines = 3
                     setOnClickListener { play(entry) }
+                }
+                if (validUrl(entry.image)) {
+                    val poster = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP }
+                    row.addView(poster, LinearLayout.LayoutParams(dp(56), dp(72)))
+                    loadPoster(poster, entry.image)
                 }
                 row.addView(info, LinearLayout.LayoutParams(0, dp(72), 1f))
                 val fav = text(if (entry.url in favorites && entry.url.isNotBlank()) "★" else "☆", 26f, true, orange).apply {
