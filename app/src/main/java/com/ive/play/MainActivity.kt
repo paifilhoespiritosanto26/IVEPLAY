@@ -326,6 +326,7 @@ class MainActivity : Activity() {
         when (page) {
             "Início" -> home()
             "TV ao Vivo" -> liveCatalog()
+            "Esportes" -> sportsSchedule()
             "Configurações" -> settings()
             else -> catalog(page)
         }
@@ -367,7 +368,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             background = shape(orange)
             isFocusable = true
-            setOnClickListener { if (items.isEmpty()) settings() else navigate("Esportes") }
+            setOnClickListener { navigate("Esportes") }
         }
         hero.addView(watch, LinearLayout.LayoutParams(-1, dp(46)))
         root.addView(hero)
@@ -468,9 +469,119 @@ class MainActivity : Activity() {
         root.addView(text("Assista no celular, Android TV ou TV Box", 13f, false, muted).apply { gravity = Gravity.CENTER })
     }
 
+    private fun sportsSchedule() {
+        begin("Esportes")
+        root.addView(text("⚽  JOGOS E PROGRAMAÇÃO", 22f, true, gold))
+        root.addView(text("Brasileirão • Champions League • principais ligas", 13f, false, muted))
+        gap(10)
+        val token = getPreferences(MODE_PRIVATE).getString("football_data_token", "") ?: ""
+        val status = text("Consultando programação...", 13f, false, muted)
+        root.addView(status)
+        val liveTitle = text("🔴  AO VIVO AGORA", 18f, true, orange)
+        val liveRows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val upcomingTitle = text("📅  PRÓXIMOS JOGOS", 18f, true, gold)
+        val upcomingRows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        gap(12)
+        root.addView(liveTitle)
+        root.addView(liveRows)
+        gap(14)
+        root.addView(upcomingTitle)
+        root.addView(upcomingRows)
+        gap(10)
+        val zone = java.time.ZoneId.of("America/Sao_Paulo")
+        fun renderMatch(match: JSONObject, live: Boolean) {
+            val homeTeam = match.optJSONObject("homeTeam")?.optString("shortName")?.takeIf { it.isNotBlank() }
+                ?: match.optJSONObject("homeTeam")?.optString("name") ?: "Mandante"
+            val awayTeam = match.optJSONObject("awayTeam")?.optString("shortName")?.takeIf { it.isNotBlank() }
+                ?: match.optJSONObject("awayTeam")?.optString("name") ?: "Visitante"
+            val competition = match.optJSONObject("competition")?.optString("name") ?: "Campeonato"
+            val kickoff = try {
+                val utc = java.time.Instant.parse(match.getString("utcDate"))
+                java.time.format.DateTimeFormatter.ofPattern("dd/MM HH:mm")
+                    .withZone(zone).format(utc)
+            } catch (_: Exception) { "Horário indisponível" }
+            val score = match.optJSONObject("score")?.optJSONObject("fullTime")
+            val goalsHome = score?.opt("home")
+            val goalsAway = score?.opt("away")
+            val scoreText = if (live && goalsHome is Number && goalsAway is Number)
+                "  ${goalsHome.toInt()} × ${goalsAway.toInt()}" else ""
+            val card = text(
+                "${if (live) "🔴 " else "⚽ "}$homeTeam × $awayTeam$scoreText\\n$competition • $kickoff (Brasília)",
+                14f, true
+            ).apply {
+                setPadding(dp(12), dp(10), dp(12), dp(10))
+                background = shape(panel, 10, if (live) orange else Color.DKGRAY)
+            }
+            (if (live) liveRows else upcomingRows).addView(card,
+                LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(7) })
+        }
+        if (token.isBlank()) {
+            status.text = "Para exibir jogos reais, configure sua chave gratuita da API esportiva."
+            liveRows.addView(text("Sem dados ao vivo configurados.", 13f, false, muted))
+            upcomingRows.addView(text("Os horários aparecerão após configurar a API.", 13f, false, muted))
+            button("CONFIGURAR API ESPORTIVA") { settings() }
+            return
+        }
+        button("ATUALIZAR JOGOS") { sportsSchedule() }
+        thread {
+            try {
+                val today = java.time.LocalDate.now(zone)
+                val start = today.toString()
+                val end = today.plusDays(7).toString()
+                val url = "https://api.football-data.org/v4/matches?dateFrom=$start&dateTo=$end&competitions=BSA,CL,PL,PD,SA,BL1,FL1"
+                val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 12000
+                    readTimeout = 20000
+                    setRequestProperty("X-Auth-Token", token)
+                    setRequestProperty("Accept", "application/json")
+                }
+                val body = try {
+                    if (connection.responseCode !in 200..299)
+                        throw java.io.IOException("API respondeu HTTP ${connection.responseCode}")
+                    connection.inputStream.bufferedReader().use { it.readText() }
+                } finally { connection.disconnect() }
+                val matches = JSONObject(body).optJSONArray("matches") ?: JSONArray()
+                val live = mutableListOf<JSONObject>()
+                val upcoming = mutableListOf<JSONObject>()
+                for (i in 0 until matches.length()) {
+                    val match = matches.optJSONObject(i) ?: continue
+                    when (match.optString("status")) {
+                        "LIVE", "IN_PLAY", "PAUSED" -> live.add(match)
+                        "SCHEDULED", "TIMED" -> upcoming.add(match)
+                    }
+                }
+                upcoming.sortBy { it.optString("utcDate") }
+                runOnUiThread {
+                    if (currentPage != "Esportes") return@runOnUiThread
+                    status.text = "Dados: football-data.org • Horário de Brasília • Atualize para consultar novamente"
+                    if (live.isEmpty()) liveRows.addView(text("Nenhum jogo ao vivo informado pela API.", 13f, false, muted))
+                    else live.forEach { renderMatch(it, true) }
+                    if (upcoming.isEmpty()) upcomingRows.addView(text("Nenhum próximo jogo informado pela API.", 13f, false, muted))
+                    else upcoming.take(35).forEach { renderMatch(it, false) }
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    if (currentPage == "Esportes")
+                        status.text = "Não foi possível consultar jogos: ${e.localizedMessage ?: "verifique a conexão e a chave"}"
+                }
+            }
+        }
+    }
+
     private fun settings() {
         begin("Configurações")
         root.addView(text("Adicionar sua fonte de conteúdo autorizada", 16f, false, muted))
+        gap(14)
+        root.addView(text("PROGRAMAÇÃO ESPORTIVA", 17f, true, gold))
+        root.addView(text("Chave da API football-data.org (plano gratuito, obtida pelo usuário).", 12f, false, muted))
+        val sportsToken = field("Chave da API esportiva")
+        sportsToken.setText(getPreferences(MODE_PRIVATE).getString("football_data_token", ""))
+        button("SALVAR CHAVE ESPORTIVA") {
+            getPreferences(MODE_PRIVATE).edit().putString("football_data_token", sportsToken.text.toString().trim()).apply()
+            toast("Chave salva neste aparelho")
+        }
+        button("VER PROGRAMAÇÃO ESPORTIVA", panel) { sportsSchedule() }
+
         gap(14)
         button("ENTRAR COM LISTA M3U") { m3uLogin() }
         button("ENTRAR COM XTREAM CODES", panel) { xtreamLogin() }
