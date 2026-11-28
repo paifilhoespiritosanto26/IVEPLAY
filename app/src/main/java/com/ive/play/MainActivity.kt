@@ -27,6 +27,7 @@ class MainActivity : Activity() {
     private val bg = Color.rgb(9, 9, 12)
     private val panel = Color.rgb(25, 25, 29)
     private val orange = Color.rgb(255, 104, 22)
+    private val gold = Color.rgb(255, 179, 52)
     private val muted = Color.rgb(175, 175, 185)
     private lateinit var root: LinearLayout
     private var player: ExoPlayer? = null
@@ -87,7 +88,7 @@ class MainActivity : Activity() {
             setOnClickListener { drawerOpen = !drawerOpen; if (drawerOpen) showMenu() else navigate(currentPage) }
         }
         bar.addView(menuButton, LinearLayout.LayoutParams(dp(48), dp(48)))
-        bar.addView(text("IVEPLAY", 23f, true, orange), LinearLayout.LayoutParams(0, dp(48), 1f))
+        bar.addView(text("♛  IVEPLAY", 23f, true, gold), LinearLayout.LayoutParams(0, dp(48), 1f))
         bar.addView(text("⌕", 30f, true).apply {
             gravity = Gravity.CENTER
             setOnClickListener { catalog("Buscar") }
@@ -241,13 +242,21 @@ class MainActivity : Activity() {
             background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 intArrayOf(Color.rgb(90, 26, 9), Color.rgb(25, 12, 15), Color.rgb(7, 7, 9))).apply { cornerRadius = dp(20).toFloat() }
         }
-        hero.addView(text("IVEPLAY", 29f, true))
+        hero.addView(text("♛  IVEPLAY", 29f, true, gold))
         hero.addView(text("Seu entretenimento em um só lugar", 16f, false, muted))
+        val featured = items.firstOrNull { it.kind == "Filmes" && validUrl(it.image) }
+            ?: items.firstOrNull { it.kind == "Séries" && validUrl(it.image) }
+        if (featured != null) {
+            val artwork = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; background = shape(panel, 12) }
+            hero.addView(artwork, LinearLayout.LayoutParams(-1, dp(145)).apply { topMargin = dp(10); bottomMargin = dp(8) })
+            loadPoster(artwork, featured.image)
+            hero.addView(text("EM DESTAQUE  •  " + featured.name, 15f, true, gold).apply { setOnClickListener { play(featured) } })
+        }
         hero.addView(text("TV ao vivo • Filmes • Séries", 14f, false, Color.WHITE).apply { setPadding(0, dp(12), 0, dp(12)) })
-        val watch = text(if (items.isEmpty()) "ADICIONAR CONTEÚDO" else "ASSISTIR AGORA", 15f, true).apply {
+        val watch = text(if (items.isEmpty()) "ADICIONAR CONTEÚDO" else "EXPLORAR CATÁLOGO", 15f, true).apply {
             gravity = Gravity.CENTER
             background = shape(orange)
-            setOnClickListener { if (items.isEmpty()) settings() else play(items.first()) }
+            setOnClickListener { if (items.isEmpty()) settings() else catalog("Filmes") }
         }
         hero.addView(watch, LinearLayout.LayoutParams(-1, dp(46)))
         root.addView(hero)
@@ -436,12 +445,14 @@ class MainActivity : Activity() {
 
     private fun parseM3u(content: String): List<MediaEntry> {
         val result = mutableListOf<MediaEntry>()
+        var image = ""
         var name = "Canal"
         var group = "TV ao Vivo"
         for (line in content.lineSequence()) {
             val s = line.trim()
             if (s.startsWith("#EXTINF", true)) {
                 name = s.substringAfterLast(',', "Canal").trim().ifBlank { "Canal" }
+                image = Regex("tvg-logo=\\\"([^\\\"]*)\\\"", RegexOption.IGNORE_CASE).find(s)?.groupValues?.get(1) ?: ""
                 group = Regex("group-title=\"([^\"]*)\"", RegexOption.IGNORE_CASE).find(s)?.groupValues?.get(1)?.ifBlank { "TV ao Vivo" } ?: "TV ao Vivo"
             } else if (validUrl(s)) {
                 val lower = group.lowercase()
@@ -450,7 +461,8 @@ class MainActivity : Activity() {
                     "série" in lower || "serie" in lower || "series" in lower -> "Séries"
                     else -> "TV ao Vivo"
                 }
-                result.add(MediaEntry(name, s, group, kind))
+                result.add(MediaEntry(name, s, group, kind, image))
+                image = ""
                 name = "Canal"
             }
         }
@@ -471,7 +483,8 @@ class MainActivity : Activity() {
     private fun liveCatalog() {
         begin("TV ao Vivo", false)
         val screen = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        root.addView(screen, LinearLayout.LayoutParams(-1, dp(420)))
+        val screenHeight = (resources.displayMetrics.heightPixels / resources.displayMetrics.density).toInt().coerceAtLeast(270)
+        root.addView(screen, LinearLayout.LayoutParams(-1, dp(screenHeight - 30)))
         val nav = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0); background = shape(panel, 10) }
         val groupsList = ListView(this).apply { dividerHeight = dp(4); setBackgroundColor(bg); isFocusable = true }
         val channelsList = ListView(this).apply { dividerHeight = dp(4); setBackgroundColor(bg); isFocusable = true }
