@@ -134,12 +134,12 @@ class MainActivity : Activity() {
         begin("Login", false)
         root.gravity = Gravity.CENTER_HORIZONTAL
         val logo = ImageView(this).apply {
-            setImageResource(R.drawable.ive_logo)
+            setImageResource(R.drawable.ive_brand_mark)
             adjustViewBounds = true
             scaleType = ImageView.ScaleType.FIT_CENTER
         }
         root.addView(logo, LinearLayout.LayoutParams(-1, dp(110)))
-        root.addView(text("IVEPLAY", 32f, true, orange).apply { gravity = Gravity.CENTER })
+        root.addView(text("IVEPLAY", 32f, true, gold).apply { gravity = Gravity.CENTER })
         root.addView(text("Seu entretenimento em um só lugar", 13f, false, muted).apply { gravity = Gravity.CENTER })
         gap(24)
         val tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -215,7 +215,7 @@ class MainActivity : Activity() {
 
     private fun showMenu() {
         begin("Menu", false)
-        root.addView(text("IVEPLAY  •  MENU", 24f, true, orange))
+        root.addView(text("♛ IVEPLAY  •  MENU", 24f, true, gold))
         gap(16)
         listOf("Início", "TV ao Vivo", "Filmes", "Séries", "Esportes", "Infantil", "Favoritos", "Histórico", "Buscar", "Configurações").forEach { page ->
             button(page, if (page == currentPage) orange else panel) { drawerOpen = false; navigate(page) }
@@ -233,7 +233,7 @@ class MainActivity : Activity() {
     private fun home() {
         begin("Início")
         val logo = ImageView(this).apply {
-            setImageResource(R.drawable.ive_logo)
+            setImageResource(R.drawable.ive_brand_mark)
             adjustViewBounds = true
             scaleType = ImageView.ScaleType.FIT_CENTER
         }
@@ -530,7 +530,7 @@ class MainActivity : Activity() {
         screen.addView(groupsList, LinearLayout.LayoutParams(0, -1, 1.6f))
         screen.addView(channelsList, LinearLayout.LayoutParams(0, -1, 2.2f))
         screen.addView(preview, LinearLayout.LayoutParams(0, -1, 3.2f))
-        nav.addView(text("IVEPLAY", 17f, true, orange))
+        nav.addView(text("♛ IVEPLAY", 17f, true, gold))
         listOf("Início", "TV ao Vivo", "Filmes", "Séries", "Esportes", "Infantil", "Favoritos", "Histórico", "Configurações").forEach { page ->
             nav.addView(text(page, 12f, page == "TV ao Vivo", if (page == "TV ao Vivo") orange else Color.WHITE).apply {
                 setPadding(dp(6), dp(10), 0, dp(10))
