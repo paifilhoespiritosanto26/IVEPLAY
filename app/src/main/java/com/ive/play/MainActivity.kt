@@ -654,6 +654,31 @@ class MainActivity : Activity() {
         // Full-screen layout keeps the channel lists independently scrollable.
         begin("TV ao Vivo", false, false)
         val channelSearch = field("Buscar canal pelo nome")
+        // Keep search and its clear action in one compact row above the channel browser.
+        root.removeView(channelSearch)
+        val searchRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        root.addView(searchRow, LinearLayout.LayoutParams(-1, dp(44)).apply {
+            bottomMargin = dp(4)
+        })
+        searchRow.addView(channelSearch, LinearLayout.LayoutParams(0, -1, 1f))
+        searchRow.addView(text("LIMPAR  ×", 12f, true, orange).apply {
+            gravity = Gravity.CENTER
+            isFocusable = true
+            isClickable = true
+            contentDescription = "Limpar busca de canais"
+            background = shape(panel, 8, orange)
+            setOnFocusChangeListener { view, focused ->
+                view.background = shape(if (focused) orange else panel, 8, orange)
+                setTextColor(if (focused) Color.BLACK else orange)
+            }
+            setOnClickListener {
+                channelSearch.text.clear()
+                channelSearch.clearFocus()
+            }
+        }, LinearLayout.LayoutParams(dp(88), -1).apply { leftMargin = dp(6) })
         val compact = resources.configuration.screenWidthDp < 480
         val screen = LinearLayout(this).apply {
             orientation = if (compact) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
