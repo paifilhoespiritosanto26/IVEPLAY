@@ -1,261 +1,17 @@
-package com.ive.play
-
-import android.app.Activity
-import android.os.Bundle
-import android.content.res.ColorStateList
-import android.graphics.Color
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
-import android.text.Editable
-import android.text.TextWatcher
-import android.view.Gravity
-import android.view.View
-import android.widget.*
-import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
-import org.json.JSONArray
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLEncoder
-import kotlin.concurrent.thread
-
-class MainActivity : Activity() {
-    private val bg = Color.rgb(9, 9, 12)
-    private val panel = Color.rgb(25, 25, 29)
-    private val orange = Color.rgb(255, 104, 22)
-    private val muted = Color.rgb(175, 175, 185)
-    private lateinit var root: LinearLayout
-    private var player: ExoPlayer? = null
-    private val items = mutableListOf<MediaEntry>()
-    private val favorites = linkedSetOf<String>()
-    private val history = mutableListOf<String>()
-    private var drawerOpen = false
-    private var currentPage = "Início"
-
-    data class MediaEntry(val name: String, val url: String, val group: String, val kind: String = "TV ao Vivo")
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        favorites.addAll(getPreferences(MODE_PRIVATE).getStringSet("favorites", emptySet()) ?: emptySet())
-        history.addAll(getPreferences(MODE_PRIVATE).getString("history", "")!!.split("\n").filter { it.isNotBlank() })
-        home()
-    }
-
-    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-    private fun shape(color: Int, radius: Int = 14, border: Int? = null): GradientDrawable =
-        GradientDrawable().apply {
-            setColor(color)
-            cornerRadius = dp(radius).toFloat()
-            if (border != null) setStroke(dp(1), border)
-        }
-
-    private fun text(value: String, size: Float = 16f, bold: Boolean = false, color: Int = Color.WHITE): TextView =
-        TextView(this).apply {
-            this.text = value
-            textSize = size
-            setTextColor(color)
-            if (bold) typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
-    private fun gap(height: Int) { root.addView(View(this), LinearLayout.LayoutParams(1, dp(height))) }
-    private fun toast(value: String) = Toast.makeText(this, value, Toast.LENGTH_LONG).show()
-
-    private fun begin(page: String, menu: Boolean = true) {
-        player?.release()
-        player = null
-        currentPage = page
-        root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(12), dp(16), dp(30))
-            setBackgroundColor(bg)
-        }
-        val scroll = ScrollView(this).apply { isFillViewport = true; addView(root) }
-        setContentView(scroll)
-        if (menu) header(page)
-    }
-
-    private fun header(page: String) {
-        val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val menuButton = text("☰", 28f, true, orange).apply {
-            gravity = Gravity.CENTER
-            setOnClickListener { drawerOpen = !drawerOpen; if (drawerOpen) showMenu() else navigate(currentPage) }
-        }
-        bar.addView(menuButton, LinearLayout.LayoutParams(dp(48), dp(48)))
-        bar.addView(text("IVEPLAY", 23f, true, orange), LinearLayout.LayoutParams(0, dp(48), 1f))
-        bar.addView(text("⌕", 30f, true).apply {
-            gravity = Gravity.CENTER
-            setOnClickListener { catalog("Buscar") }
-        }, LinearLayout.LayoutParams(dp(48), dp(48)))
-        root.addView(bar)
-        if (page != "Início") {
-            root.addView(text(page, 24f, true).apply { setPadding(0, dp(10), 0, dp(12)) })
-        }
-    }
-
-    private fun button(title: String, color: Int = orange, action: () -> Unit) {
-        val view = text(title, 15f, true).apply {
-            gravity = Gravity.CENTER
-            background = shape(color)
-            setOnClickListener { action() }
-        }
-        root.addView(view, LinearLayout.LayoutParams(-1, dp(48)).apply { bottomMargin = dp(10) })
-    }
-
-    private fun field(hint: String, password: Boolean = false): EditText {
-        val input = EditText(this).apply {
-            this.hint = hint
-            setTextColor(Color.WHITE)
-            setHintTextColor(muted)
-            textSize = 15f
-            setSingleLine(true)
-            setPadding(dp(14), 0, dp(14), 0)
-            background = shape(panel, 10, Color.DKGRAY)
-            if (password) inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        root.addView(input, LinearLayout.LayoutParams(-1, dp(52)).apply { bottomMargin = dp(12) })
-        return input
-    }
-
-    private fun showMenu() {
-        begin("Menu", false)
-        root.addView(text("IVEPLAY  •  MENU", 24f, true, orange))
-        gap(16)
-        listOf("Início", "TV ao Vivo", "Filmes", "Séries", "Esportes", "Infantil", "Favoritos", "Histórico", "Buscar", "Configurações").forEach { page ->
-            button(page, if (page == currentPage) orange else panel) { drawerOpen = false; navigate(page) }
-        }
-    }
-
-    private fun navigate(page: String) {
-        when (page) {
-            "Início" -> home()
-            "Configurações" -> settings()
-            else -> catalog(page)
-        }
-    }
-
-    private fun home() {
-        begin("Início")
-        val logo = ImageView(this).apply {
-            setImageResource(R.drawable.ive_logo)
-            adjustViewBounds = true
-            scaleType = ImageView.ScaleType.FIT_CENTER
-        }
-        root.addView(logo, LinearLayout.LayoutParams(-1, dp(105)))
-        gap(8)
-        val hero = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(22), dp(18), dp(22))
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                intArrayOf(Color.rgb(90, 26, 9), Color.rgb(25, 12, 15), Color.rgb(7, 7, 9))).apply { cornerRadius = dp(20).toFloat() }
-        }
-        hero.addView(text("IVEPLAY", 29f, true))
-        hero.addView(text("Seu entretenimento em um só lugar", 16f, false, muted))
-        hero.addView(text("TV ao vivo • Filmes • Séries", 14f, false, Color.WHITE).apply { setPadding(0, dp(12), 0, dp(12)) })
-        val watch = text(if (items.isEmpty()) "ADICIONAR CONTEÚDO" else "ASSISTIR AGORA", 15f, true).apply {
-            gravity = Gravity.CENTER
-            background = shape(orange)
-            setOnClickListener { if (items.isEmpty()) settings() else play(items.first()) }
-        }
-        hero.addView(watch, LinearLayout.LayoutParams(-1, dp(46)))
-        root.addView(hero)
-        gap(22)
-        root.addView(text("Categorias", 21f, true))
-        gap(10)
-        val categories = listOf(
-            Triple("📺 TV ao Vivo", "TV ao Vivo", Color.rgb(155, 45, 18)),
-            Triple("🎬 Filmes", "Filmes", Color.rgb(20, 76, 145)),
-            Triple("🎞 Séries", "Séries", Color.rgb(96, 43, 138)),
-            Triple("⚽ Esportes", "Esportes", Color.rgb(27, 112, 64)),
-            Triple("🧸 Infantil", "Infantil", Color.rgb(158, 83, 27))
-        )
-        categories.chunked(2).forEach { pair ->
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            pair.forEach { (label, page, color) ->
-                val tile = text(label, 15f, true).apply {
-                    gravity = Gravity.CENTER
-                    background = shape(color)
-                    setOnClickListener { catalog(page) }
-                }
-                row.addView(tile, LinearLayout.LayoutParams(0, dp(88), 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) })
-            }
-            if (pair.size == 1) row.addView(View(this), LinearLayout.LayoutParams(0, dp(88), 1f))
-            root.addView(row)
-        }
-        gap(18)
-        if (items.isEmpty()) {
-            root.addView(text("Conecte sua lista autorizada para mostrar canais, filmes e séries.", 15f, false, muted))
-            gap(12)
-            button("ENTRAR COM LISTA M3U") { m3uLogin() }
-            button("ENTRAR COM XTREAM CODES", panel) { xtreamLogin() }
-        } else {
-            listOf("TV ao Vivo", "Filmes", "Séries").forEach { kind ->
-                val matching = items.filter { it.kind == kind }.take(8)
-                if (matching.isNotEmpty()) {
-                    gap(14)
-                    root.addView(text(if (kind == "TV ao Vivo") "Canais ao Vivo" else "$kind em Destaque", 20f, true))
-                    gap(8)
-                    val strip = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-                    matching.forEach { entry ->
-                        val card = LinearLayout(this).apply {
-                            orientation = LinearLayout.VERTICAL
-                            gravity = Gravity.CENTER
-                            setPadding(dp(8), dp(8), dp(8), dp(8))
-                            background = shape(panel, 12, Color.rgb(69, 43, 34))
-                            setOnClickListener { play(entry) }
-                        }
-                        card.addView(text(if (kind == "TV ao Vivo") "▶" else "🎬", 29f, true, orange).apply { gravity = Gravity.CENTER })
-                        card.addView(text(entry.name, 12f, true).apply { gravity = Gravity.CENTER; maxLines = 2 })
-                        strip.addView(card, LinearLayout.LayoutParams(dp(130), dp(135)).apply { rightMargin = dp(9) })
-                    }
-                    root.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(strip) })
-                }
-            }
-        }
-        gap(20)
-        root.addView(text("Assista no celular, Android TV ou TV Box", 13f, false, muted).apply { gravity = Gravity.CENTER })
-    }
-
-    private fun settings() {
-        begin("Configurações")
-        root.addView(text("Adicionar sua fonte de conteúdo autorizada", 16f, false, muted))
-        gap(14)
-        button("ENTRAR COM LISTA M3U") { m3uLogin() }
-        button("ENTRAR COM XTREAM CODES", panel) { xtreamLogin() }
-        gap(14)
-        root.addView(text("Itens carregados: ${items.size}", 15f))
-        gap(12)
-        button("VOLTAR AO INÍCIO", panel) { home() }
-    }
-
-    private fun m3uLogin() {
-        begin("Adicionar lista M3U")
-        val input = field("URL da lista M3U (https://...)")
-        button("CARREGAR CONTEÚDO") {
-            val link = input.text.toString().trim()
-            if (!validUrl(link)) { toast("Informe uma URL HTTP ou HTTPS válida"); return@button }
-            fetch(link) { body ->
-                val found = parseM3u(body)
-                if (found.isEmpty()) toast("Nenhum conteúdo encontrado na lista")
-                else { items.clear(); items.addAll(found); toast("${items.size} itens carregados"); home() }
+        button("CONECTAR") {
+            val host = server.text.toString().trim().trimEnd('/')
+            val username = user.text.toString().trim()
+            val password = pass.text.toString()
+            if (!validUrl(host) || username.isBlank() || password.isBlank()) {
+                toast("Preencha servidor, usuário e senha")
+            } else {
+                loadXtream(host, username, password) { enterCatalog() }
             }
         }
         button("VOLTAR", panel) { settings() }
     }
 
-    private fun xtreamLogin() {
-        begin("Xtream Codes")
-        val server = field("Servidor: https://exemplo.com")
-        val user = field("Usuário")
-        val pass = field("Senha", true)
-        button("CONECTAR") {
-            val host = server.text.toString().trim().trimEnd('/')
-            val username = user.text.toString().trim()
-            val password = pass.text.toString().trim()
-            if (!validUrl(host) || username.isBlank() || password.isBlank()) {
-                toast("Preencha servidor, usuário e senha"); return@button
-            }
+    private fun loadXtream(host: String, username: String, password: String, onSuccess: () -> Unit) {
             val u = URLEncoder.encode(username, "UTF-8")
             val p = URLEncoder.encode(password, "UTF-8")
             val found = mutableListOf<MediaEntry>()
@@ -306,12 +62,10 @@ class MainActivity : Activity() {
                     }
                     runOnUiThread {
                         if (found.isEmpty()) toast("Não foi possível carregar o catálogo. Confira o acesso.")
-                        else { items.clear(); items.addAll(found); toast("${items.size} itens carregados"); home() }
+                        else { items.clear(); items.addAll(found); toast("${items.size} itens carregados"); onSuccess() }
                     }
                 } catch (e: Exception) { runOnUiThread { toast("Erro ao carregar: ${e.localizedMessage}") } }
             }
-        }
-        button("VOLTAR", panel) { settings() }
     }
 
     private fun validUrl(value: String) = value.startsWith("https://", true) || value.startsWith("http://", true)
