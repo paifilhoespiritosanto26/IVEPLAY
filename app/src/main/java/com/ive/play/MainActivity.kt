@@ -481,7 +481,41 @@ class MainActivity : Activity() {
         val channels = filtered("Esportes")
             .filter { it.kind == "TV ao Vivo" && it.url.isNotBlank() }
             .sortedBy { it.name.trim().replace(Regex("""^\\d+[\\s._:|\\-]*"""), "").lowercase(java.util.Locale.ROOT) }
-        if (channels.isEmpty()) {
+        val search = field("Buscar canal esportivo")
+        root.addView(text("Use a busca para encontrar canais pelo nome ou grupo.", 12f, false, muted))
+        gap(8)
+        val channelRows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(channelRows)
+        fun showChannels(query: String) {
+            channelRows.removeAllViews()
+            val matching = channels.filter {
+                it.name.contains(query.trim(), ignoreCase = true) ||
+                    it.group.contains(query.trim(), ignoreCase = true)
+            }
+            if (matching.isEmpty()) {
+                channelRows.addView(text("Nenhum canal encontrado.", 14f, false, muted))
+                return
+            }
+            matching.forEach { entry ->
+                val item = text("▶  ${entry.name}\\n${entry.group}", 15f, true).apply {
+                    setPadding(dp(14), dp(12), dp(14), dp(12))
+                    background = shape(panel, 12, Color.DKGRAY)
+                    isFocusable = true
+                    isClickable = true
+                    setOnClickListener { play(entry) }
+                }
+                channelRows.addView(item, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+            }
+        }
+        search.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                showChannels(s?.toString() ?: "")
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+        showChannels("")
+        /* if (channels.isEmpty()) {
             root.addView(text("Nenhum canal esportivo encontrado na lista carregada.", 14f, false, muted))
         } else {
             channels.forEach { entry ->
@@ -495,6 +529,7 @@ class MainActivity : Activity() {
                 root.addView(item, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
             }
         }
+        */
         gap(12)
         button("VOLTAR À PROGRAMAÇÃO", panel) { sportsSchedule() }
     }
