@@ -187,8 +187,11 @@ class MainActivity : Activity() {
             isFillViewport = false
             addView(loginFields)
         }
+        // Use the actual landscape height instead of a fixed 320dp form.
+        // This leaves the sign-in button reachable on smaller Android phones.
+        val availableFormHeight = (resources.configuration.screenHeightDp - 44).coerceAtLeast(180)
         loginColumns.addView(formScroll, if (shortLandscape) {
-            LinearLayout.LayoutParams(0, dp(320), 1.5f)
+            LinearLayout.LayoutParams(0, dp(availableFormHeight), 1.5f)
         } else {
             LinearLayout.LayoutParams(-1, -2)
         })
@@ -204,7 +207,20 @@ class MainActivity : Activity() {
                 tabs.addView(text(label, 15f, true, if (xtream == mode) Color.BLACK else Color.WHITE).apply {
                     gravity = Gravity.CENTER
                     background = shape(if (xtream == mode) orange else panel)
-                    setOnClickListener { xtream = mode; renderForm() }
+                    isFocusable = true
+                    isClickable = true
+                    contentDescription = "Entrar com $label"
+                    setOnFocusChangeListener { view, focused ->
+                        view.background = shape(if (focused) gold else if (xtream == mode) orange else panel)
+                        setTextColor(if (focused || xtream == mode) Color.BLACK else Color.WHITE)
+                    }
+                    setOnClickListener {
+                        if (xtream != mode) {
+                            xtream = mode
+                            renderForm()
+                            formScroll.scrollTo(0, 0)
+                        }
+                    }
                 }, LinearLayout.LayoutParams(0, dp(48), 1f))
             }
             fun input(hint: String, secret: Boolean = false): EditText {
@@ -235,6 +251,12 @@ class MainActivity : Activity() {
             form.addView(text("ENTRAR", 17f, true, Color.BLACK).apply {
                 gravity = Gravity.CENTER
                 background = shape(orange)
+                isFocusable = true
+                isClickable = true
+                contentDescription = "Conectar à lista de conteúdo"
+                setOnFocusChangeListener { view, focused ->
+                    view.background = shape(if (focused) gold else orange)
+                }
                 setOnClickListener {
                     if (xtream) {
                         val host = server.text.toString().trim().trimEnd('/')
