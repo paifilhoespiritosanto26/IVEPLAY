@@ -16,6 +16,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import org.json.JSONArray
+import org.json.JSONObject
+import android.graphics.BitmapFactory
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -31,10 +33,11 @@ class MainActivity : Activity() {
     private val items = mutableListOf<MediaEntry>()
     private val favorites = linkedSetOf<String>()
     private val history = mutableListOf<String>()
+    private var xtreamSession: Triple<String, String, String>? = null
     private var drawerOpen = false
     private var currentPage = "Início"
 
-    data class MediaEntry(val name: String, val url: String, val group: String, val kind: String = "TV ao Vivo")
+    data class MediaEntry(val name: String, val url: String, val group: String, val kind: String = "TV ao Vivo", val image: String = "", val seriesId: String = "")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -191,7 +194,7 @@ class MainActivity : Activity() {
                         else fetch(url) { body ->
                             val found = parseM3u(body)
                             if (found.isEmpty()) toast("Nenhum conteúdo encontrado")
-                            else { items.clear(); items.addAll(found); enterCatalog() }
+                            else { xtreamSession = null; items.clear(); items.addAll(found); enterCatalog() }
                         }
                     }
                     if (keep.isChecked) toast("Manter conectado requer armazenamento seguro, ainda em desenvolvimento.")
@@ -293,7 +296,9 @@ class MainActivity : Activity() {
                             background = shape(panel, 12, Color.rgb(69, 43, 34))
                             setOnClickListener { play(entry) }
                         }
-                        card.addView(text(if (kind == "TV ao Vivo") "▶" else "🎬", 29f, true, orange).apply { gravity = Gravity.CENTER })
+                        val poster = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; setBackgroundColor(Color.rgb(40, 35, 35)) }
+                        card.addView(poster, LinearLayout.LayoutParams(-1, dp(82)))
+                        loadPoster(poster, entry.image)
                         card.addView(text(entry.name, 12f, true).apply { gravity = Gravity.CENTER; maxLines = 2 })
                         strip.addView(card, LinearLayout.LayoutParams(dp(130), dp(135)).apply { rightMargin = dp(9) })
                     }
@@ -314,7 +319,7 @@ class MainActivity : Activity() {
         gap(14)
         root.addView(text("Itens carregados: ${items.size}", 15f))
         gap(12)
-        button("TROCAR CONTA / SAIR", panel) { items.clear(); loginScreen() }
+        button("TROCAR CONTA / SAIR", panel) { items.clear(); xtreamSession = null; loginScreen() }
         button("VOLTAR AO INÍCIO", panel) { home() }
     }
 
@@ -327,7 +332,7 @@ class MainActivity : Activity() {
             fetch(link) { body ->
                 val found = parseM3u(body)
                 if (found.isEmpty()) toast("Nenhum conteúdo encontrado na lista")
-                else { items.clear(); items.addAll(found); toast("${items.size} itens carregados"); home() }
+                else { xtreamSession = null; items.clear(); items.addAll(found); toast("${items.size} itens carregados"); home() }
             }
         }
         button("VOLTAR", panel) { settings() }
@@ -389,20 +394,20 @@ class MainActivity : Activity() {
                                 val id = if (action == "get_series") obj.optString("series_id") else obj.optString("stream_id")
                                 if (id.isBlank()) continue
                                 when (action) {
-                                    "get_live_streams" -> found.add(MediaEntry(name, "$host/live/$u/$p/$id.ts", group, "TV ao Vivo"))
+                                    "get_live_streams" -> found.add(MediaEntry(name, "$host/live/$u/$p/$id.ts", group, "TV ao Vivo", obj.optString("stream_icon")) )
                                     "get_vod_streams" -> {
                                         val ext = obj.optString("container_extension", "mp4").ifBlank { "mp4" }
-                                        found.add(MediaEntry(name, "$host/movie/$u/$p/$id.$ext", group, "Filmes"))
+                                        found.add(MediaEntry(name, "$host/movie/$u/$p/$id.$ext", group, "Filmes", obj.optString("stream_icon")) )
                                     }
                                     // Series require selecting a season/episode; don't invent a playback URL.
-                                    "get_series" -> found.add(MediaEntry(name, "", group, "Séries"))
+                                    "get_series" -> found.add(MediaEntry(name, "", group, "Séries", obj.optString("cover"), id))
                                 }
                             }
                         } catch (_: Exception) { /* Some authorized servers expose only selected categories. */ }
                     }
                     runOnUiThread {
                         if (found.isEmpty()) toast("Não foi possível carregar o catálogo. Confira o acesso.")
-                        else { items.clear(); items.addAll(found); toast("${items.size} itens carregados"); onSuccess() }
+                        else { xtreamSession = Triple(host, username, password); items.clear(); items.addAll(found); toast("${items.size} itens carregados"); onSuccess() }
                     }
                 } catch (e: Exception) { runOnUiThread { toast("Erro ao carregar: ${e.localizedMessage}") } }
             }
@@ -516,14 +521,14 @@ class MainActivity : Activity() {
             channelsView.addView(text("CANAIS", 15f, true, orange))
             val matches = channels.filter { selectedGroup == null || it.group.ifBlank { "Outros" } == selectedGroup }
             if (matches.isEmpty()) channelsView.addView(text("Nenhum canal nesta categoria", 12f, false, muted))
-            matches.take(300).forEach { entry ->
+            matches.forEach { entry ->
                 channelsView.addView(text("▶  " + entry.name, 12f, false).apply {
                     setPadding(dp(6), dp(10), dp(2), dp(10))
                     background = shape(panel, 7)
                     setOnClickListener { showPreview(entry) }
                 }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(5) })
             }
-            if (matches.size > 300) channelsView.addView(text("Exibindo os primeiros 300 canais", 11f, false, muted))
+
         }
         fun renderGroups() {
             groupsView.removeAllViews()
@@ -616,11 +621,59 @@ class MainActivity : Activity() {
         render("")
     }
 
+    private fun loadPoster(target: ImageView, link: String) {
+        if (!validUrl(link)) return
+        thread {
+            try {
+                val conn = URL(link).openConnection() as HttpURLConnection
+                conn.connectTimeout = 8000
+                conn.readTimeout = 10000
+                val bitmap = try { conn.inputStream.use { BitmapFactory.decodeStream(it) } } finally { conn.disconnect() }
+                if (bitmap != null) runOnUiThread { target.setImageBitmap(bitmap) }
+            } catch (_: Exception) { /* Keep placeholder if the source image is unavailable. */ }
+        }
+    }
+
+    private fun seriesEpisodes(entry: MediaEntry) {
+        val session = xtreamSession
+        if (session == null) { toast("Esta lista não fornece detalhes de episódios Xtream"); return }
+        begin(entry.name)
+        root.addView(text("Carregando temporadas e episódios...", 16f, false, muted))
+        val (host, username, password) = session
+        thread {
+            try {
+                val u = URLEncoder.encode(username, "UTF-8")
+                val p = URLEncoder.encode(password, "UTF-8")
+                val response = JSONObject(download("$host/player_api.php?username=$u&password=$p&action=get_series_info&series_id=${entry.seriesId}"))
+                val episodes = response.optJSONObject("episodes") ?: JSONObject()
+                val seasons = episodes.keys().asSequence().toList().sortedWith(compareBy { it.toIntOrNull() ?: Int.MAX_VALUE })
+                runOnUiThread {
+                    begin(entry.name)
+                    if (seasons.isEmpty()) { root.addView(text("Nenhum episódio disponível nesta lista.", 15f)); return@runOnUiThread }
+                    seasons.forEach { season ->
+                        root.addView(text("TEMPORADA $season", 18f, true, orange))
+                        val list = episodes.optJSONArray(season) ?: JSONArray()
+                        for (i in 0 until list.length()) {
+                            val ep = list.optJSONObject(i) ?: continue
+                            val id = ep.optString("id")
+                            if (id.isBlank()) continue
+                            val title = ep.optString("title", "Episódio ${i + 1}")
+                            val ext = ep.optString("container_extension", "mp4").ifBlank { "mp4" }
+                            val url = "$host/series/$u/$p/$id.$ext"
+                            button(title, panel) { play(MediaEntry(title, url, entry.group, "Séries", entry.image)) }
+                        }
+                    }
+                }
+            } catch (_: Exception) { runOnUiThread { toast("Não foi possível carregar os episódios desta série") } }
+        }
+    }
+
     private fun play(entry: MediaEntry) {
-        if (entry.url.isBlank()) {
-            toast("Esta série precisa de seleção de temporada e episódio. Recurso em desenvolvimento.")
+        if (entry.seriesId.isNotBlank() && entry.kind == "Séries") {
+            seriesEpisodes(entry)
             return
         }
+        if (entry.url.isBlank()) { toast("Conteúdo sem endereço de reprodução"); return }
         begin(entry.name)
         val view = PlayerView(this).apply {
             useController = true
