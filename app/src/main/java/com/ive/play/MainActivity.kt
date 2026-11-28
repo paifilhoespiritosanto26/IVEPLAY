@@ -1070,7 +1070,13 @@ class MainActivity : Activity() {
         val backAction = text("‹  VOLTAR", 13f, true, orange).apply {
             gravity = Gravity.CENTER
             isFocusable = true
+            isClickable = true
+            contentDescription = "Voltar para ${entry.kind}"
             background = shape(panel, 8, orange)
+            setOnFocusChangeListener { focusedView, focused ->
+                focusedView.background = shape(if (focused) orange else panel, 8, orange)
+                setTextColor(if (focused) Color.BLACK else orange)
+            }
             setOnClickListener {
                 if (entry.kind == "TV ao Vivo") liveCatalog() else catalog(entry.kind)
             }
@@ -1082,12 +1088,23 @@ class MainActivity : Activity() {
             ellipsize = android.text.TextUtils.TruncateAt.END
             setPadding(dp(10), 0, dp(10), 0)
         }, LinearLayout.LayoutParams(0, dp(42), 1f))
-        playbackActions.addView(text("INÍCIO", 13f, true, gold).apply {
+        val homeAction = text("INÍCIO", 13f, true, gold).apply {
             gravity = Gravity.CENTER
             isFocusable = true
+            isClickable = true
+            contentDescription = "Voltar à tela inicial"
             background = shape(panel, 8, gold)
+            setOnFocusChangeListener { focusedView, focused ->
+                focusedView.background = shape(if (focused) gold else panel, 8, gold)
+                setTextColor(if (focused) Color.BLACK else gold)
+            }
             setOnClickListener { home() }
-        }, LinearLayout.LayoutParams(dp(85), dp(42)))
+        }
+        playbackActions.addView(homeAction, LinearLayout.LayoutParams(dp(85), dp(42)))
+        backAction.id = View.generateViewId()
+        homeAction.id = View.generateViewId()
+        backAction.nextFocusRightId = homeAction.id
+        homeAction.nextFocusLeftId = backAction.id
     }
 
     override fun onStart() {
