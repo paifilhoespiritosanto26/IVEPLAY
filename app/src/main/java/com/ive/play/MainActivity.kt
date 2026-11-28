@@ -545,7 +545,9 @@ class MainActivity : Activity() {
             })
         }
         val channels = items.filter { it.kind == "TV ao Vivo" }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
-        val groups = channels.map { it.group.ifBlank { "Outros" } }.distinct().sortedWith(String.CASE_INSENSITIVE_ORDER)
+        val groups = channels.map { it.group.trim().ifBlank { "Outros" } }
+            .distinctBy { it.lowercase() }.sortedWith(String.CASE_INSENSITIVE_ORDER)
+        val groupCounts = channels.groupingBy { it.group.trim().ifBlank { "Outros" }.lowercase() }.eachCount()
         var selectedGroup: String? = null
         var selected: MediaEntry? = null
         val playerView = PlayerView(this).apply { useController = true; setBackgroundColor(Color.BLACK) }
@@ -578,13 +580,15 @@ class MainActivity : Activity() {
             } catch (_: Exception) { toast("Não foi possível abrir a pré-visualização") }
         }
         fun refreshChannels() {
-            val matches = channels.filter { selectedGroup == null || it.group.ifBlank { "Outros" } == selectedGroup }
+            val matches = channels.filter { selectedGroup == null || it.group.trim().ifBlank { "Outros" }.equals(selectedGroup, ignoreCase = true) }
             channelsList.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, matches.map { "▶  " + it.name })
             channelsList.setOnItemClickListener { _, _, position, _ -> showPreview(matches[position]) }
             channelsList.setSelection(0)
         }
         val choices = listOf("Todos os Canais" to null) + groups.map { it to it }
-        groupsList.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, choices.map { it.first })
+        groupsList.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, choices.map { (name, group) ->
+            if (group == null) "$name (${channels.size})" else "$name (${groupCounts[group.lowercase()] ?: 0})"
+        })
         groupsList.setOnItemClickListener { _, _, position, _ ->
             selectedGroup = choices[position].second
             refreshChannels()
