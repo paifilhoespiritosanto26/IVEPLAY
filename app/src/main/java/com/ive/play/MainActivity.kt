@@ -72,7 +72,7 @@ class MainActivity : Activity() {
     private fun gap(height: Int) { root.addView(View(this), LinearLayout.LayoutParams(1, dp(height))) }
     private fun toast(value: String) = Toast.makeText(this, value, Toast.LENGTH_LONG).show()
 
-    private fun begin(page: String, menu: Boolean = true) {
+    private fun begin(page: String, menu: Boolean = true, scrollable: Boolean = true) {
         player?.release()
         player = null
         currentPage = page
@@ -81,8 +81,12 @@ class MainActivity : Activity() {
             setPadding(dp(16), dp(12), dp(16), dp(30))
             setBackgroundColor(bg)
         }
-        val scroll = ScrollView(this).apply { isFillViewport = true; addView(root) }
-        setContentView(scroll)
+        if (scrollable) {
+            val scroll = ScrollView(this).apply { isFillViewport = true; addView(root) }
+            setContentView(scroll)
+        } else {
+            setContentView(root)
+        }
         if (menu) header(page)
     }
 
@@ -544,10 +548,8 @@ class MainActivity : Activity() {
     // Four-column live-TV view: navigation, groups, channels, preview.
     // Independently scrolling channel/category lists: no nested ScrollView gesture conflicts.
     private fun liveCatalog() {
-        begin("TV ao Vivo", false)
-        // Avoid a parent ScrollView intercepting vertical swipes and TV remote navigation.
-        root.layoutParams = android.widget.FrameLayout.LayoutParams(-1, -1)
-        setContentView(root)
+        // Full-screen layout keeps the channel lists independently scrollable.
+        begin("TV ao Vivo", false, false)
         val screen = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         root.addView(screen, LinearLayout.LayoutParams(-1, 0, 1f))
         val nav = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0); background = shape(panel, 10) }
