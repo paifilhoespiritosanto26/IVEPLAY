@@ -488,8 +488,13 @@ class MainActivity : Activity() {
         root.addView(upcomingTitle)
         root.addView(upcomingRows)
         gap(10)
+        val finishedTitle = text("🏁  RESULTADOS DE HOJE", 18f, true, gold)
+        val finishedRows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(finishedTitle)
+        root.addView(finishedRows)
+        gap(10)
         val zone = java.time.ZoneId.of("America/Sao_Paulo")
-        fun renderMatch(match: JSONObject, live: Boolean) {
+        fun renderMatch(match: JSONObject, live: Boolean, finished: Boolean = false) {
             val homeTeam = match.optJSONObject("homeTeam")?.optString("shortName")?.takeIf { it.isNotBlank() }
                 ?: match.optJSONObject("homeTeam")?.optString("name") ?: "Mandante"
             val awayTeam = match.optJSONObject("awayTeam")?.optString("shortName")?.takeIf { it.isNotBlank() }
@@ -503,22 +508,23 @@ class MainActivity : Activity() {
             val score = match.optJSONObject("score")?.optJSONObject("fullTime")
             val goalsHome = score?.opt("home")
             val goalsAway = score?.opt("away")
-            val scoreText = if (live && goalsHome is Number && goalsAway is Number)
+            val scoreText = if ((live || finished) && goalsHome is Number && goalsAway is Number)
                 "  ${goalsHome.toInt()} × ${goalsAway.toInt()}" else ""
             val card = text(
-                "${if (live) "🔴 " else "⚽ "}$homeTeam × $awayTeam$scoreText\n$competition • $kickoff (Brasília)",
+                "${if (live) "🔴 " else if (finished) "🏁 " else "⚽ "}$homeTeam × $awayTeam$scoreText\n$competition • $kickoff (Brasília)",
                 14f, true
             ).apply {
                 setPadding(dp(12), dp(10), dp(12), dp(10))
                 background = shape(panel, 10, if (live) orange else Color.DKGRAY)
             }
-            (if (live) liveRows else upcomingRows).addView(card,
+            (if (live) liveRows else if (finished) finishedRows else upcomingRows).addView(card,
                 LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(7) })
         }
         if (token.isBlank()) {
             status.text = "Para exibir jogos reais, configure sua chave gratuita da API esportiva."
             liveRows.addView(text("Sem dados ao vivo configurados.", 13f, false, muted))
             upcomingRows.addView(text("Os horários aparecerão após configurar a API.", 13f, false, muted))
+            finishedRows.addView(text("Resultados indisponíveis sem configuração.", 13f, false, muted))
             button("CONFIGURAR API ESPORTIVA") { settings() }
             return
         }
@@ -543,14 +549,17 @@ class MainActivity : Activity() {
                 val matches = JSONObject(body).optJSONArray("matches") ?: JSONArray()
                 val live = mutableListOf<JSONObject>()
                 val upcoming = mutableListOf<JSONObject>()
+                val finished = mutableListOf<JSONObject>()
                 for (i in 0 until matches.length()) {
                     val match = matches.optJSONObject(i) ?: continue
                     when (match.optString("status")) {
                         "LIVE", "IN_PLAY", "PAUSED" -> live.add(match)
                         "SCHEDULED", "TIMED" -> upcoming.add(match)
+                        "FINISHED" -> if (match.optString("utcDate").startsWith(today.toString())) finished.add(match)
                     }
                 }
                 upcoming.sortBy { it.optString("utcDate") }
+                finished.sortByDescending { it.optString("utcDate") }
                 runOnUiThread {
                     if (currentPage != "Esportes") return@runOnUiThread
                     status.text = "Dados: football-data.org • Horário de Brasília • Atualize para consultar novamente"
@@ -558,11 +567,17 @@ class MainActivity : Activity() {
                     else live.forEach { renderMatch(it, true) }
                     if (upcoming.isEmpty()) upcomingRows.addView(text("Nenhum próximo jogo informado pela API.", 13f, false, muted))
                     else upcoming.take(35).forEach { renderMatch(it, false) }
+                    if (finished.isEmpty()) finishedRows.addView(text("Nenhum resultado de hoje informado pela API.", 13f, false, muted))
+                    else finished.take(20).forEach { renderMatch(it, false, true) }
                 }
             } catch (e: Exception) {
                 runOnUiThread {
-                    if (currentPage == "Esportes")
+                    if (currentPage == "Esportes") {
+                        liveRows.removeAllViews()
+                        upcomingRows.removeAllViews()
+                        finishedRows.removeAllViews()
                         status.text = "Não foi possível consultar jogos: ${e.localizedMessage ?: "verifique a conexão e a chave"}"
+                    }
                 }
             }
         }
