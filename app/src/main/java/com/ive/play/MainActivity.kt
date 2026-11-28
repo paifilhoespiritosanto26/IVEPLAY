@@ -772,7 +772,7 @@ class MainActivity : Activity() {
         button("INÍCIO", panel) { home() }
     }
 
-    override fun onDestroy() { player?.release(); player = null; super.onDestroy() }
+    override fun onDestroy() { player?.release(); player = null; imageLoader.shutdownNow(); super.onDestroy() }
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() { if (player != null) home() else if (currentPage != "Início") home() else super.onBackPressed() }
 }
