@@ -314,6 +314,16 @@ class MainActivity : Activity() {
             }
             form.addView(keep)
             form.addView(text(if (xtream) "A permanência conectada do Xtream ainda não está disponível." else "Salva o nome e a URL neste aparelho e reconecta ao abrir o app.", 12f, false, muted))
+            val connectionStatus = text("", 13f, false, gold).apply {
+                visibility = View.GONE
+                setPadding(0, dp(8), 0, dp(8))
+            }
+            form.addView(connectionStatus)
+            fun showConnectionStatus(message: String, failure: Boolean = false) {
+                connectionStatus.text = message
+                connectionStatus.setTextColor(if (failure) Color.rgb(255, 112, 112) else gold)
+                connectionStatus.visibility = View.VISIBLE
+            }
             form.addView(text("ENTRAR", 17f, true, Color.BLACK).apply {
                 gravity = Gravity.CENTER
                 background = shape(orange)
@@ -340,13 +350,13 @@ class MainActivity : Activity() {
                         else if (!validUrl(url)) toast("Informe uma URL M3U HTTP ou HTTPS válida")
                         else {
                             val keepConnected = keep.isChecked
-                            toast("Conectando à lista M3U...")
+                            showConnectionStatus("Conectando ao servidor e lendo canais...")
                             thread {
                                 try {
                                     val body = download(url)
                                     val found = parseM3u(body)
                                     runOnUiThread {
-                                        if (found.isEmpty()) toast(m3uFailureReason(body))
+                                        if (found.isEmpty()) showConnectionStatus(m3uFailureReason(body), true)
                                         else {
                                             xtreamSession = null
                                             items.clear()
@@ -357,7 +367,7 @@ class MainActivity : Activity() {
                                     }
                                 } catch (e: Exception) {
                                     runOnUiThread {
-                                        toast(connectionMessage(e))
+                                        showConnectionStatus(connectionMessage(e), true)
                                     }
                                 }
                             }
