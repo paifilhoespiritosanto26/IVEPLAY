@@ -231,7 +231,20 @@ class MainActivity : Activity() {
                     setSingleLine(true)
                     setPadding(dp(12), 0, dp(12), 0)
                     background = shape(panel, 10, orange)
-                    if (secret) inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                    inputType = when {
+                        secret -> android.text.InputType.TYPE_CLASS_TEXT or
+                            android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                        hint.startsWith("URL") -> android.text.InputType.TYPE_CLASS_TEXT or
+                            android.text.InputType.TYPE_TEXT_VARIATION_URI
+                        else -> android.text.InputType.TYPE_CLASS_TEXT
+                    }
+                    imeOptions = if (secret || hint == "URL da lista M3U") {
+                        android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+                    } else {
+                        android.view.inputmethod.EditorInfo.IME_ACTION_NEXT
+                    }
+                    isFocusable = true
+                    contentDescription = hint
                 }
                 form.addView(v, LinearLayout.LayoutParams(-1, dp(50)).apply { topMargin = dp(12) })
                 return v
