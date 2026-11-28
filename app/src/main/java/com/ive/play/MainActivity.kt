@@ -263,6 +263,19 @@ class MainActivity : Activity() {
             toast("Carregando catálogo...")
             thread {
                 try {
+                    // Resolve Xtream category IDs to the real group names.
+                    val categoryNames = mutableMapOf<String, String>()
+                    listOf("get_live_categories", "get_vod_categories", "get_series_categories").forEach { categoryAction ->
+                        try {
+                            val categories = JSONArray(download("$host/player_api.php?username=$u&password=$p&action=$categoryAction"))
+                            for (i in 0 until categories.length()) {
+                                val category = categories.optJSONObject(i) ?: continue
+                                val id = category.optString("category_id")
+                                val label = category.optString("category_name")
+                                if (id.isNotBlank() && label.isNotBlank()) categoryNames["$categoryAction:$id"] = label
+                            }
+                        } catch (_: Exception) { /* Category endpoints may be unavailable. */ }
+                    }
                     actions.forEach { action ->
                         try {
                             val body = download("$host/player_api.php?username=$u&password=$p&action=$action")
@@ -270,7 +283,13 @@ class MainActivity : Activity() {
                             for (i in 0 until array.length()) {
                                 val obj = array.optJSONObject(i) ?: continue
                                 val name = obj.optString("name", "Conteúdo")
-                                val group = obj.optString("category_id", "Outros")
+                                val categoryId = obj.optString("category_id")
+                                val categoryAction = when (action) {
+                                    "get_live_streams" -> "get_live_categories"
+                                    "get_vod_streams" -> "get_vod_categories"
+                                    else -> "get_series_categories"
+                                }
+                                val group = categoryNames["$categoryAction:$categoryId"] ?: "Outros"
                                 val id = if (action == "get_series") obj.optString("series_id") else obj.optString("stream_id")
                                 if (id.isBlank()) continue
                                 when (action) {
@@ -351,11 +370,23 @@ class MainActivity : Activity() {
     private fun catalog(page: String) {
         begin(page)
         val search = field("Buscar por nome ou categoria")
+        val source = filtered(page)
+        val groups = source.map { it.group.ifBlank { "Outros" } }.distinct().sortedWith(String.CASE_INSENSITIVE_ORDER)
+        var selectedGroup: String? = null
+        val groupBar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val groupScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(groupBar)
+        }
+        root.addView(groupScroll)
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(list)
         fun render(query: String) {
             list.removeAllViews()
-            val results = filtered(page).filter { it.name.contains(query, true) || it.group.contains(query, true) }
+            val results = source.filter {
+                (selectedGroup == null || it.group.ifBlank { "Outros" } == selectedGroup) &&
+                (it.name.contains(query, true) || it.group.contains(query, true))
+            }
             if (results.isEmpty()) {
                 list.addView(text(if (items.isEmpty()) "Adicione uma lista em Configurações." else "Nenhum item encontrado.", 15f, false, muted))
             }
@@ -381,6 +412,27 @@ class MainActivity : Activity() {
             }
             if (results.size > 250) list.addView(text("Mostrando 250 resultados. Refine sua busca.", 13f, false, muted))
         }
+        // A horizontal group selector keeps networks and genres separate.
+        fun addGroupChip(label: String, group: String?) {
+            val chip = text(label, 13f, true, if (selectedGroup == group) Color.BLACK else Color.WHITE).apply {
+                gravity = Gravity.CENTER
+                setPadding(dp(14), dp(7), dp(14), dp(7))
+                background = shape(if (selectedGroup == group) orange else panel, 9, orange)
+                setOnClickListener {
+                    selectedGroup = group
+                    groupBar.removeAllViews()
+                    addGroupChip("Todos", null)
+                    groups.forEach { addGroupChip(it, it) }
+                    render(search.text.toString())
+                }
+            }
+            groupBar.addView(chip, LinearLayout.LayoutParams(-2, dp(42)).apply {
+                rightMargin = dp(8)
+                bottomMargin = dp(10)
+            })
+        }
+        addGroupChip("Todos", null)
+        groups.forEach { addGroupChip(it, it) }
         search.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { render(s.toString()) }
