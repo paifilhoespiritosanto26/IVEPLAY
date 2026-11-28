@@ -119,6 +119,90 @@ class MainActivity : Activity() {
         return input
     }
 
+    private fun loginScreen() {
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        begin("Login", false)
+        root.gravity = Gravity.CENTER_HORIZONTAL
+        val logo = ImageView(this).apply {
+            setImageResource(R.drawable.ive_logo)
+            adjustViewBounds = true
+            scaleType = ImageView.ScaleType.FIT_CENTER
+        }
+        root.addView(logo, LinearLayout.LayoutParams(-1, dp(110)))
+        root.addView(text("IVEPLAY", 32f, true, orange).apply { gravity = Gravity.CENTER })
+        root.addView(text("Seu entretenimento em um só lugar", 13f, false, muted).apply { gravity = Gravity.CENTER })
+        gap(24)
+        val tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        root.addView(tabs)
+        val form = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(form)
+        var xtream = true
+        fun renderForm() {
+            tabs.removeAllViews()
+            form.removeAllViews()
+            listOf("Xtream Codes" to true, "Lista M3U" to false).forEach { (label, mode) ->
+                tabs.addView(text(label, 15f, true, if (xtream == mode) Color.BLACK else Color.WHITE).apply {
+                    gravity = Gravity.CENTER
+                    background = shape(if (xtream == mode) orange else panel)
+                    setOnClickListener { xtream = mode; renderForm() }
+                }, LinearLayout.LayoutParams(0, dp(48), 1f))
+            }
+            fun input(hint: String, secret: Boolean = false): EditText {
+                val v = EditText(this).apply {
+                    this.hint = hint
+                    setTextColor(Color.WHITE)
+                    setHintTextColor(muted)
+                    setSingleLine(true)
+                    setPadding(dp(12), 0, dp(12), 0)
+                    background = shape(panel, 10, orange)
+                    if (secret) inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                }
+                form.addView(v, LinearLayout.LayoutParams(-1, dp(50)).apply { topMargin = dp(12) })
+                return v
+            }
+            val server = input(if (xtream) "URL do servidor" else "URL da lista M3U")
+            val user = if (xtream) input("Usuário") else null
+            val pass = if (xtream) input("Senha", true) else null
+            val keep = CheckBox(this).apply {
+                text = "Manter conectado"
+                setTextColor(Color.WHITE)
+                buttonTintList = ColorStateList.valueOf(orange)
+            }
+            form.addView(keep)
+            form.addView(text("ENTRAR", 17f, true, Color.BLACK).apply {
+                gravity = Gravity.CENTER
+                background = shape(orange)
+                setOnClickListener {
+                    if (xtream) {
+                        val host = server.text.toString().trim().trimEnd('/')
+                        val username = user!!.text.toString().trim()
+                        val password = pass!!.text.toString()
+                        if (!validUrl(host) || username.isBlank() || password.isBlank()) {
+                            toast("Preencha URL, usuário e senha")
+                        } else {
+                            loadXtream(host, username, password) { enterCatalog() }
+                        }
+                    } else {
+                        val url = server.text.toString().trim()
+                        if (!validUrl(url)) toast("Informe uma URL válida")
+                        else fetch(url) { body ->
+                            val found = parseM3u(body)
+                            if (found.isEmpty()) toast("Nenhum conteúdo encontrado")
+                            else { items.clear(); items.addAll(found); enterCatalog() }
+                        }
+                    }
+                    if (keep.isChecked) toast("Manter conectado requer armazenamento seguro, ainda em desenvolvimento.")
+                }
+            }, LinearLayout.LayoutParams(-1, dp(54)).apply { topMargin = dp(12) })
+        }
+        renderForm()
+    }
+
+    private fun enterCatalog() {
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        home()
+    }
+
     private fun showMenu() {
         begin("Menu", false)
         root.addView(text("IVEPLAY  •  MENU", 24f, true, orange))
