@@ -913,14 +913,31 @@ class MainActivity : Activity() {
                 setOnClickListener { navigate(page) }
             })
         }
+        val featuredNames = listOf("globo", "record", "sbt", "band", "redetv")
+        fun cleanChannelName(name: String): String =
+            name.trim().replace(Regex("""^\\d+[\\s._:|\\-]*"""), "")
+                .trim().lowercase(java.util.Locale.ROOT)
+                .replace(Regex("""[\\s._:|\\-]+"""), " ")
+                .trim()
+        fun featuredRank(name: String): Int {
+            val clean = cleanChannelName(name)
+            val normalized = clean.replace(" ", "")
+            return featuredNames.indexOfFirst { channel ->
+                val alias = if (channel == "redetv") listOf("redetv", "redetv!", "rede tv") else listOf(channel)
+                alias.any { candidate ->
+                    val target = candidate.replace(" ", "")
+                    normalized == target || normalized.startsWith("$target ") ||
+                        (normalized.startsWith(target) &&
+                            normalized.drop(target.length).firstOrNull()?.let { !it.isLetter() } == true)
+                }
+            }.let { if (it < 0) Int.MAX_VALUE else it }
+        }
         val channels = items.filter { it.kind == "TV ao Vivo" }.sortedWith(
-            compareBy<MediaEntry> {
-                // Ignore leading channel numbers and separators when alphabetizing.
-                it.name.trim().replace(Regex("""^\d+[\s._:|\-]*"""), "").ifBlank { it.name.trim() }
-                    .lowercase()
-            }.thenBy { it.name.lowercase() }
+            compareBy<MediaEntry> { featuredRank(it.name) }
+                .thenBy { cleanChannelName(it.name) }
+                .thenBy { it.name.lowercase(java.util.Locale.ROOT) }
         )
-        val groups = channels.map { it.group.trim().ifBlank { "Outros" } }
+                val groups = channels.map { it.group.trim().ifBlank { "Outros" } }
             .distinctBy { it.lowercase() }.sortedWith(String.CASE_INSENSITIVE_ORDER)
         val groupCounts = channels.groupingBy { it.group.trim().ifBlank { "Outros" }.lowercase() }.eachCount()
         var selectedGroup: String? = null
