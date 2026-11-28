@@ -851,6 +851,14 @@ class MainActivity : Activity() {
                 matches.map { "▶  " + it.name }
             }
             channelsList.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)
+            // Preserve the selected channel when searching or switching categories.
+            // Do not leave a placeholder row selected when there are no matches.
+            val selectedIndex = matches.indexOfFirst { it.url == selected?.url && it.name == selected?.name }
+            if (selectedIndex >= 0) {
+                channelsList.setItemChecked(selectedIndex + if (compact) 0 else 1, true)
+            } else {
+                channelsList.clearChoices()
+            }
             channelsList.setOnItemClickListener { _, _, position, _ ->
                 val index = if (compact) position else position - 1
                 matches.getOrNull(index)?.let { entry ->
@@ -858,7 +866,9 @@ class MainActivity : Activity() {
                     showPreview(entry)
                 }
             }
-            channelsList.setSelection(if (compact) 0 else 1)
+            channelsList.setSelection(if (selectedIndex >= 0) {
+                selectedIndex + if (compact) 0 else 1
+            } else if (compact) 0 else 1)
         }
         val choices = listOf("Todos os Canais" to null) + groups.map { it to it }
         groupsList.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, choices.map { (name, group) ->
