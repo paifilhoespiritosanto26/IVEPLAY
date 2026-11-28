@@ -61,7 +61,45 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         favorites.addAll(getPreferences(MODE_PRIVATE).getStringSet("favorites", emptySet()) ?: emptySet())
         history.addAll(getPreferences(MODE_PRIVATE).getString("history", "")!!.split("\n").filter { it.isNotBlank() })
-        loginScreen()
+        val prefs = getPreferences(MODE_PRIVATE)
+        if (prefs.getBoolean("keep_m3u", false) && !prefs.getString("saved_m3u_url", "").isNullOrBlank()) restoreM3uSession()
+        else loginScreen()
+    }
+
+    private fun restoreM3uSession() {
+        val url = getPreferences(MODE_PRIVATE).getString("saved_m3u_url", "") ?: ""
+        if (!validUrl(url)) { loginScreen(); return }
+        begin("Conectando", false)
+        root.addView(text("Restaurando lista M3U salva...", 17f, true, gold))
+        thread {
+            try {
+                val found = parseM3u(download(url))
+                runOnUiThread {
+                    if (found.isEmpty()) {
+                        toast("A lista salva está vazia ou inválida. Conecte novamente.")
+                        loginScreen()
+                    } else {
+                        xtreamSession = null
+                        items.clear()
+                        items.addAll(found)
+                        enterCatalog()
+                    }
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    toast("Não foi possível restaurar a lista. Verifique a internet ou o servidor.")
+                    loginScreen()
+                }
+            }
+        }
+    }
+
+    private fun saveM3uSession(name: String, url: String, keep: Boolean) {
+        getPreferences(MODE_PRIVATE).edit()
+            .putBoolean("keep_m3u", keep)
+            .putString("saved_m3u_name", if (keep) name else "")
+            .putString("saved_m3u_url", if (keep) url else "")
+            .apply()
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
@@ -243,7 +281,7 @@ class MainActivity : Activity() {
                     inputType = when {
                         secret -> android.text.InputType.TYPE_CLASS_TEXT or
                             android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-                        hint.startsWith("URL") -> android.text.InputType.TYPE_CLASS_TEXT or
+                        hint.startsWith("URL") || hint.startsWith("Lista M3U") -> android.text.InputType.TYPE_CLASS_TEXT or
                             android.text.InputType.TYPE_TEXT_VARIATION_URI
                         else -> android.text.InputType.TYPE_CLASS_TEXT
                     }
@@ -258,18 +296,20 @@ class MainActivity : Activity() {
                 form.addView(v, LinearLayout.LayoutParams(-1, dp(50)).apply { topMargin = dp(12) })
                 return v
             }
-            val server = input(if (xtream) "URL do servidor" else "URL da lista M3U")
+            val listName = if (!xtream) input("Nome da lista") else null
+            val server = input(if (xtream) "URL do servidor" else "Lista M3U (URL http:// ou https://)")
             val user = if (xtream) input("Usuário") else null
             val pass = if (xtream) input("Senha", true) else null
             val keep = CheckBox(this).apply {
                 text = "Manter conectado"
                 setTextColor(Color.WHITE)
                 buttonTintList = ColorStateList.valueOf(orange)
-                isEnabled = false
-                alpha = 0.55f
+                isEnabled = !xtream
+                isChecked = !xtream && getPreferences(MODE_PRIVATE).getBoolean("keep_m3u", false)
+                alpha = if (xtream) 0.55f else 1f
             }
             form.addView(keep)
-            form.addView(text("Salvar o acesso com segurança estará disponível em uma próxima versão.", 12f, false, muted))
+            form.addView(text(if (xtream) "A permanência conectada do Xtream ainda não está disponível." else "Salva o nome e a URL neste aparelho e reconecta ao abrir o app.", 12f, false, muted))
             form.addView(text("ENTRAR", 17f, true, Color.BLACK).apply {
                 gravity = Gravity.CENTER
                 background = shape(orange)
@@ -290,12 +330,20 @@ class MainActivity : Activity() {
                             loadXtream(host, username, password) { enterCatalog() }
                         }
                     } else {
+                        val name = listName!!.text.toString().trim()
                         val url = server.text.toString().trim()
-                        if (!validUrl(url)) toast("Informe uma URL válida")
+                        if (name.isBlank()) toast("Informe o nome da lista")
+                        else if (!validUrl(url)) toast("Informe uma URL M3U HTTP ou HTTPS válida")
                         else fetch(url) { body ->
                             val found = parseM3u(body)
                             if (found.isEmpty()) toast("A URL respondeu, mas não trouxe canais M3U válidos. Confira o formato da lista.")
-                            else { xtreamSession = null; items.clear(); items.addAll(found); enterCatalog() }
+                            else {
+                                xtreamSession = null
+                                items.clear()
+                                items.addAll(found)
+                                saveM3uSession(name, url, keep.isChecked)
+                                enterCatalog()
+                            }
                         }
                     }
                 }
@@ -756,15 +804,28 @@ class MainActivity : Activity() {
         gap(14)
         root.addView(text("Itens carregados: ${items.size}", 15f))
         gap(12)
-        button("TROCAR CONTA / SAIR", panel) { items.clear(); xtreamSession = null; loginScreen() }
+        button("TROCAR CONTA / SAIR", panel) { saveM3uSession("", "", false); items.clear(); xtreamSession = null; loginScreen() }
         button("VOLTAR AO INÍCIO", panel) { home() }
     }
 
     private fun m3uLogin() {
         begin("Adicionar lista M3U")
-        val input = field("URL da lista M3U (https://...)")
+        val nameInput = field("Nome da lista")
+        val input = field("Lista M3U (URL http:// ou https://)")
+        val prefs = getPreferences(MODE_PRIVATE)
+        nameInput.setText(prefs.getString("saved_m3u_name", ""))
+        input.setText(prefs.getString("saved_m3u_url", ""))
+        val keep = CheckBox(this).apply {
+            text = "Manter conectado"
+            setTextColor(Color.WHITE)
+            buttonTintList = ColorStateList.valueOf(orange)
+            isChecked = prefs.getBoolean("keep_m3u", false)
+        }
+        root.addView(keep)
         button("CARREGAR CONTEÚDO") {
+            val name = nameInput.text.toString().trim()
             val link = input.text.toString().trim()
+            if (name.isBlank()) { toast("Informe o nome da lista"); return@button }
             if (!validUrl(link)) { toast("Informe uma URL HTTP ou HTTPS válida"); return@button }
             toast("Baixando e organizando lista M3U...")
             thread {
@@ -778,6 +839,7 @@ class MainActivity : Activity() {
                             xtreamSession = null
                             items.clear()
                             items.addAll(found)
+                            saveM3uSession(name, link, keep.isChecked)
                             toast("${items.size} itens carregados")
                             enterCatalog()
                         }
