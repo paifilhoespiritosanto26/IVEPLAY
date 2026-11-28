@@ -374,40 +374,61 @@ class MainActivity : Activity() {
         gap(22)
         root.addView(text("Categorias", 21f, true))
         gap(10)
+        // Soft, translucent category panels on the dark IVEPLAY background.
         val categories = listOf(
-            Triple("TV ao Vivo", R.drawable.ive_category_tv, Color.rgb(155, 45, 18)),
-            Triple("Filmes", R.drawable.ive_category_film, Color.rgb(20, 76, 145)),
-            Triple("Séries", R.drawable.ive_category_series, Color.rgb(96, 43, 138)),
-            Triple("Esportes", R.drawable.ive_category_sports, Color.rgb(27, 112, 64)),
-            Triple("Infantil", R.drawable.ive_category_kids, Color.rgb(158, 83, 27))
+            Triple("TV ao Vivo", R.drawable.ive_category_tv, Color.rgb(255, 109, 48)),
+            Triple("Filmes", R.drawable.ive_category_film, Color.rgb(67, 152, 255)),
+            Triple("Séries", R.drawable.ive_category_series, Color.rgb(177, 116, 255)),
+            Triple("Esportes", R.drawable.ive_category_sports, Color.rgb(54, 205, 143)),
+            Triple("Infantil", R.drawable.ive_category_kids, Color.rgb(255, 170, 88))
         )
         categories.chunked(2).forEach { pair ->
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            pair.forEach { (page, iconRes, color) ->
+            pair.forEach { (page, iconRes, accent) ->
+                fun tileBackground(focused: Boolean): GradientDrawable =
+                    GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(
+                        Color.argb(if (focused) 105 else 56, Color.red(accent), Color.green(accent), Color.blue(accent)),
+                        Color.argb(240, 19, 19, 26)
+                    )).apply {
+                        cornerRadius = dp(16).toFloat()
+                        setStroke(dp(if (focused) 2 else 1),
+                            if (focused) accent else Color.argb(105, Color.red(accent), Color.green(accent), Color.blue(accent)))
+                    }
                 val tile = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER
-                    background = shape(color, 12)
+                    background = tileBackground(false)
                     isFocusable = true
                     isClickable = true
                     contentDescription = "Abrir $page"
                     setOnFocusChangeListener { view, focused ->
-                        view.background = shape(if (focused) orange else color, 12,
-                            if (focused) gold else null)
+                        view.background = tileBackground(focused)
                     }
                     setOnClickListener { navigate(page) }
                 }
-                tile.addView(ImageView(this).apply {
+                val iconBadge = LinearLayout(this).apply {
+                    gravity = Gravity.CENTER
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(Color.argb(75, Color.red(accent), Color.green(accent), Color.blue(accent)))
+                        setStroke(dp(1), Color.argb(155, Color.red(accent), Color.green(accent), Color.blue(accent)))
+                    }
+                }
+                iconBadge.addView(ImageView(this).apply {
                     setImageResource(iconRes)
+                    setColorFilter(accent)
                     contentDescription = null
                     isFocusable = false
-                }, LinearLayout.LayoutParams(dp(30), dp(30)).apply { rightMargin = dp(10) })
-                tile.addView(text(page, 15f, true))
-                row.addView(tile, LinearLayout.LayoutParams(0, dp(88), 1f).apply {
-                    setMargins(dp(3), dp(3), dp(3), dp(3))
+                }, LinearLayout.LayoutParams(dp(29), dp(29)))
+                tile.addView(iconBadge, LinearLayout.LayoutParams(dp(49), dp(49)).apply {
+                    rightMargin = dp(12)
+                })
+                tile.addView(text(page, 16f, true))
+                row.addView(tile, LinearLayout.LayoutParams(0, dp(92), 1f).apply {
+                    setMargins(dp(4), dp(4), dp(4), dp(4))
                 })
             }
-            if (pair.size == 1) row.addView(View(this), LinearLayout.LayoutParams(0, dp(88), 1f))
+            if (pair.size == 1) row.addView(View(this), LinearLayout.LayoutParams(0, dp(92), 1f))
             root.addView(row)
         }
         gap(18)
