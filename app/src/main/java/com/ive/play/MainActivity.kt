@@ -725,10 +725,12 @@ class MainActivity : Activity() {
                 setOnClickListener { home() }
             }
             root.addView(homeLink, LinearLayout.LayoutParams(-1, dp(44)))
-            screen.addView(top, LinearLayout.LayoutParams(-1, 0, 1f))
+            // Split the remaining height proportionally so both channel lists and
+            // video preview remain usable on short landscape phone screens.
+            screen.addView(top, LinearLayout.LayoutParams(-1, 0, 1.15f))
             top.addView(groupsList, LinearLayout.LayoutParams(0, -1, 1.1f))
             top.addView(channelsList, LinearLayout.LayoutParams(0, -1, 1.9f))
-            screen.addView(preview, LinearLayout.LayoutParams(-1, dp(245)))
+            screen.addView(preview, LinearLayout.LayoutParams(-1, 0, 1f))
         } else {
             screen.addView(ScrollView(this).apply { addView(nav) }, LinearLayout.LayoutParams(0, -1, 0.85f))
             screen.addView(groupsList, LinearLayout.LayoutParams(0, -1, 1.5f))
