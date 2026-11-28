@@ -85,7 +85,12 @@ class MainActivity : Activity() {
         if (page == "Início" || page == "TV ao Vivo" || page == "Menu") playingKind = null
         root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(12), dp(16), dp(30))
+            // Preserve screen space for the four-pane live-TV media center.
+            if (page == "TV ao Vivo") {
+                setPadding(dp(6), dp(4), dp(6), dp(4))
+            } else {
+                setPadding(dp(16), dp(12), dp(16), dp(30))
+            }
             setBackgroundColor(bg)
         }
         if (scrollable) {
