@@ -559,16 +559,32 @@ class MainActivity : Activity() {
     private fun liveCatalog() {
         // Full-screen layout keeps the channel lists independently scrollable.
         begin("TV ao Vivo", false, false)
-        val screen = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val compact = resources.configuration.screenWidthDp < 650
+        val screen = LinearLayout(this).apply {
+            orientation = if (compact) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        }
         root.addView(screen, LinearLayout.LayoutParams(-1, 0, 1f))
         val nav = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0); background = shape(panel, 10) }
         val groupsList = ListView(this).apply { dividerHeight = dp(4); setBackgroundColor(bg); isFocusable = true; isFocusableInTouchMode = true }
         val channelsList = ListView(this).apply { dividerHeight = dp(4); setBackgroundColor(bg); isFocusable = true; isFocusableInTouchMode = true }
         val preview = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0) }
-        screen.addView(ScrollView(this).apply { addView(nav) }, LinearLayout.LayoutParams(0, -1, 1.2f))
-        screen.addView(groupsList, LinearLayout.LayoutParams(0, -1, 1.6f))
-        screen.addView(channelsList, LinearLayout.LayoutParams(0, -1, 2.2f))
-        screen.addView(preview, LinearLayout.LayoutParams(0, -1, 3.2f))
+        if (compact) {
+            val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            val homeLink = text("♛ IVEPLAY   •   INÍCIO", 17f, true, gold).apply {
+                isFocusable = true
+                setOnClickListener { home() }
+            }
+            root.addView(homeLink, LinearLayout.LayoutParams(-1, dp(44)))
+            screen.addView(top, LinearLayout.LayoutParams(-1, 0, 1f))
+            top.addView(groupsList, LinearLayout.LayoutParams(0, -1, 1.1f))
+            top.addView(channelsList, LinearLayout.LayoutParams(0, -1, 1.9f))
+            screen.addView(preview, LinearLayout.LayoutParams(-1, dp(245)))
+        } else {
+            screen.addView(ScrollView(this).apply { addView(nav) }, LinearLayout.LayoutParams(0, -1, 1.2f))
+            screen.addView(groupsList, LinearLayout.LayoutParams(0, -1, 1.6f))
+            screen.addView(channelsList, LinearLayout.LayoutParams(0, -1, 2.2f))
+            screen.addView(preview, LinearLayout.LayoutParams(0, -1, 3.2f))
+        }
         nav.addView(text("♛ IVEPLAY", 17f, true, gold))
         listOf("Início", "TV ao Vivo", "Filmes", "Séries", "Esportes", "Infantil", "Favoritos", "Histórico", "Configurações").forEach { page ->
             nav.addView(text(page, 12f, page == "TV ao Vivo", if (page == "TV ao Vivo") orange else Color.WHITE).apply {
@@ -587,7 +603,7 @@ class MainActivity : Activity() {
         val playerTitle = text("Selecione um canal", 15f, true, orange)
         preview.addView(text("PRÉ-VISUALIZAÇÃO", 14f, true, orange))
         preview.addView(text("${channels.size} canais carregados", 11f, false, muted))
-        preview.addView(playerView, LinearLayout.LayoutParams(-1, dp(190)).apply { topMargin = dp(10) })
+        preview.addView(playerView, LinearLayout.LayoutParams(-1, dp(if (compact) 110 else 190)).apply { topMargin = dp(10) })
         preview.addView(playerTitle)
         preview.addView(text("Programação EPG não disponível nesta versão", 12f, false, muted))
         preview.addView(text("TELA CHEIA  ▶", 13f, true, orange).apply {
