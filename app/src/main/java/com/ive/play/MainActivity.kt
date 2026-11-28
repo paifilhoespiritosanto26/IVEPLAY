@@ -458,7 +458,88 @@ class MainActivity : Activity() {
         else -> items.filter { it.kind == page }
     }
 
+    // Four-column live-TV view: navigation, groups, channels, preview.
+    private fun liveCatalog() {
+        begin("TV ao Vivo", false)
+        val screen = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        root.addView(screen, LinearLayout.LayoutParams(-1, dp(440)))
+        val nav = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0); background = shape(panel, 10) }
+        val groupsView = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0) }
+        val channelsView = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0) }
+        val preview = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0) }
+        screen.addView(nav, LinearLayout.LayoutParams(0, -1, 1.15f))
+        screen.addView(ScrollView(this).apply { addView(groupsView) }, LinearLayout.LayoutParams(0, -1, 1.5f))
+        screen.addView(ScrollView(this).apply { addView(channelsView) }, LinearLayout.LayoutParams(0, -1, 2.1f))
+        screen.addView(preview, LinearLayout.LayoutParams(0, -1, 3.1f))
+        nav.addView(text("IVEPLAY", 18f, true, orange))
+        listOf("Início", "TV ao Vivo", "Filmes", "Séries", "Esportes", "Infantil", "Favoritos", "Histórico", "Configurações").forEach { page ->
+            nav.addView(text(page, 12f, page == "TV ao Vivo", if (page == "TV ao Vivo") orange else Color.WHITE).apply {
+                setPadding(dp(6), dp(10), 0, dp(10))
+                setOnClickListener { navigate(page) }
+            })
+        }
+        val channels = items.filter { it.kind == "TV ao Vivo" }
+        val groups = channels.map { it.group.ifBlank { "Outros" } }.distinct().sortedWith(String.CASE_INSENSITIVE_ORDER)
+        var selectedGroup: String? = null
+        var selected: MediaEntry? = null
+        val playerView = PlayerView(this).apply { useController = true; setBackgroundColor(Color.BLACK) }
+        val playerTitle = text("Selecione um canal", 15f, true, orange)
+        val epg = text("Programação EPG não disponível nesta versão", 12f, false, muted)
+        preview.addView(text("PRÉ-VISUALIZAÇÃO", 14f, true, orange))
+        preview.addView(playerView, LinearLayout.LayoutParams(-1, dp(210)).apply { topMargin = dp(10) })
+        preview.addView(playerTitle)
+        preview.addView(epg)
+        preview.addView(text("TELA CHEIA  ▶", 13f, true, orange).apply {
+            setPadding(0, dp(14), 0, dp(10))
+            setOnClickListener { selected?.let { play(it) } }
+        })
+        fun showPreview(entry: MediaEntry) {
+            selected = entry
+            playerTitle.text = entry.name
+            player?.release()
+            player = null
+            if (entry.url.isBlank()) { toast("Canal sem endereço de reprodução"); return }
+            try {
+                player = ExoPlayer.Builder(this).build().also {
+                    playerView.player = it
+                    it.setMediaItem(MediaItem.fromUri(entry.url))
+                    it.prepare()
+                    it.playWhenReady = true
+                }
+            } catch (_: Exception) { toast("Não foi possível abrir a pré-visualização") }
+        }
+        fun renderChannels() {
+            channelsView.removeAllViews()
+            channelsView.addView(text("CANAIS", 15f, true, orange))
+            val matches = channels.filter { selectedGroup == null || it.group.ifBlank { "Outros" } == selectedGroup }
+            if (matches.isEmpty()) channelsView.addView(text("Nenhum canal nesta categoria", 12f, false, muted))
+            matches.take(300).forEach { entry ->
+                channelsView.addView(text("▶  " + entry.name, 12f, false).apply {
+                    setPadding(dp(6), dp(10), dp(2), dp(10))
+                    background = shape(panel, 7)
+                    setOnClickListener { showPreview(entry) }
+                }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(5) })
+            }
+            if (matches.size > 300) channelsView.addView(text("Exibindo os primeiros 300 canais", 11f, false, muted))
+        }
+        fun renderGroups() {
+            groupsView.removeAllViews()
+            groupsView.addView(text("CATEGORIAS", 15f, true, orange))
+            val choices = listOf("Todos os Canais" to null) + groups.map { it to it }
+            choices.forEach { (label, group) ->
+                groupsView.addView(text(label, 12f, selectedGroup == group, if (selectedGroup == group) orange else Color.WHITE).apply {
+                    setPadding(dp(6), dp(10), 0, dp(10))
+                    background = shape(if (selectedGroup == group) Color.rgb(52, 29, 18) else panel, 7)
+                    setOnClickListener { selectedGroup = group; renderGroups(); renderChannels() }
+                }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(5) })
+            }
+        }
+        renderGroups()
+        renderChannels()
+    }
+
     private fun catalog(page: String) {
+        if (page == "TV ao Vivo") { liveCatalog(); return }
         begin(page)
         val search = field("Buscar por nome ou categoria")
         val source = filtered(page)
