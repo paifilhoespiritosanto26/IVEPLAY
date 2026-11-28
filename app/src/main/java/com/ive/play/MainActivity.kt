@@ -496,13 +496,22 @@ class MainActivity : Activity() {
                 channelRows.addView(text("Nenhum canal encontrado.", 14f, false, muted))
                 return
             }
-            matching.forEach { entry ->
+            if (matching.size > 250) {
+                channelRows.addView(text("Exibindo 250 de ${matching.size} canais. Refine a busca.", 12f, false, muted))
+            }
+            matching.take(250).forEach { entry ->
                 val item = text("▶  ${entry.name}\n${entry.group}", 15f, true).apply {
                     setPadding(dp(14), dp(12), dp(14), dp(12))
                     background = shape(panel, 12, Color.DKGRAY)
                     isFocusable = true
                     isClickable = true
                     setOnClickListener { play(entry) }
+                    setOnFocusChangeListener { view, focused ->
+                        view.background = shape(if (focused) Color.rgb(58, 38, 24) else panel,
+                            12, if (focused) orange else Color.DKGRAY)
+                        view.scaleX = if (focused) 1.015f else 1f
+                        view.scaleY = if (focused) 1.015f else 1f
+                    }
                 }
                 channelRows.addView(item, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
             }
