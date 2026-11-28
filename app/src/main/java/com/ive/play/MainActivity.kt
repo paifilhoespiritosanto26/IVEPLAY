@@ -450,25 +450,36 @@ class MainActivity : Activity() {
 
     private fun parseM3u(content: String): List<MediaEntry> {
         val result = mutableListOf<MediaEntry>()
-        var image = ""
         var name = "Canal"
         var group = "TV ao Vivo"
-        for (line in content.lineSequence()) {
-            val s = line.trim().removePrefix("\uFEFF")
-            if (s.startsWith("#EXTINF", true)) {
-                name = s.substringAfterLast(',', "Canal").trim().ifBlank { "Canal" }
-                image = Regex("tvg-logo=\\\"([^\\\"]*)\\\"", RegexOption.IGNORE_CASE).find(s)?.groupValues?.get(1) ?: ""
-                group = Regex("group-title=\"([^\"]*)\"", RegexOption.IGNORE_CASE).find(s)?.groupValues?.get(1)?.ifBlank { "TV ao Vivo" } ?: "TV ao Vivo"
-            } else if (validUrl(s)) {
-                val lower = group.lowercase()
-                val kind = when {
-                    "filme" in lower || "movie" in lower || "vod" in lower -> "Filmes"
-                    "série" in lower || "serie" in lower || "series" in lower -> "Séries"
-                    else -> "TV ao Vivo"
+        var image = ""
+        val attr = Regex("""([\\w-]+)\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s]+))""")
+        for (raw in content.lineSequence()) {
+            val line = raw.trim().removePrefix("\\uFEFF")
+            when {
+                line.startsWith("#EXTINF", true) -> {
+                    name = line.substringAfter(',', "Canal").trim().ifBlank { "Canal" }
+                    val attributes = attr.findAll(line.substringBeforeLast(',', line)).associate {
+                        it.groupValues[1].lowercase() to (it.groupValues[2].ifBlank { it.groupValues[3].ifBlank { it.groupValues[4] } })
+                    }
+                    image = attributes["tvg-logo"].orEmpty()
+                    group = attributes["group-title"].orEmpty().ifBlank { "TV ao Vivo" }
                 }
-                result.add(MediaEntry(name, s, group, kind, image))
-                image = ""
-                name = "Canal"
+                line.startsWith("#EXTGRP:", true) -> {
+                    group = line.substringAfter(':').trim().ifBlank { "TV ao Vivo" }
+                }
+                validUrl(line) -> {
+                    val lower = group.lowercase()
+                    val kind = when {
+                        listOf("filme", "movie", "vod", "cinema").any { it in lower } -> "Filmes"
+                        listOf("série", "serie", "series", "temporada").any { it in lower } -> "Séries"
+                        else -> "TV ao Vivo"
+                    }
+                    result.add(MediaEntry(name, line, group, kind, image))
+                    name = "Canal"
+                    group = "TV ao Vivo"
+                    image = ""
+                }
             }
         }
         return result
@@ -601,7 +612,7 @@ class MainActivity : Activity() {
                 row.addView(fav, LinearLayout.LayoutParams(dp(48), dp(72)))
                 list.addView(row, LinearLayout.LayoutParams(-1, dp(72)).apply { bottomMargin = dp(9) })
             }
-            if (results.size > 250) list.addView(text("Mostrando 250 resultados. Refine sua busca.", 13f, false, muted))
+            if (results.size > 250) list.addView(text("Mostrando 250 resultados. Use a busca ou escolha uma categoria.", 13f, false, muted))
         }
         // A horizontal group selector keeps networks and genres separate.
         fun addGroupChip(label: String, group: String?) {
