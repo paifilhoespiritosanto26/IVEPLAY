@@ -1426,6 +1426,13 @@ class MainActivity : Activity() {
             while (history.size > 100) history.removeAt(history.lastIndex)
             getPreferences(MODE_PRIVATE).edit().putString("history", history.joinToString("\n")).apply()
         } catch (e: Exception) { toast("Não foi possível iniciar a reprodução") }
+        if (origin == "Canais esportivos" && entry.kind == "TV ao Vivo") {
+            root.addView(text("AO VIVO  •  Use CH+ / CH− no controle para trocar de canal", 12f, true, orange).apply {
+                gravity = Gravity.CENTER
+                setPadding(dp(4), dp(3), dp(4), dp(3))
+                contentDescription = "Canal ao vivo. Use as teclas canal mais e canal menos para trocar."
+            })
+        }
         val playbackActions = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
