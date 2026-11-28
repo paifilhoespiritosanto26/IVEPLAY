@@ -561,6 +561,7 @@ class MainActivity : Activity() {
     private fun liveCatalog() {
         // Full-screen layout keeps the channel lists independently scrollable.
         begin("TV ao Vivo", false, false)
+        val channelSearch = field("Buscar canal pelo nome")
         val compact = resources.configuration.screenWidthDp < 650
         val screen = LinearLayout(this).apply {
             orientation = if (compact) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
@@ -631,7 +632,11 @@ class MainActivity : Activity() {
             } catch (_: Exception) { toast("Não foi possível abrir a pré-visualização") }
         }
         fun refreshChannels() {
-            val matches = channels.filter { selectedGroup == null || it.group.trim().ifBlank { "Outros" }.equals(selectedGroup, ignoreCase = true) }
+            val query = channelSearch.text.toString().trim()
+        val matches = channels.filter {
+            (selectedGroup == null || it.group.trim().ifBlank { "Outros" }.equals(selectedGroup, ignoreCase = true)) &&
+                (query.isBlank() || it.name.contains(query, ignoreCase = true))
+        }
             channelsList.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, matches.map { "▶  " + it.name })
             channelsList.setOnItemClickListener { _, _, position, _ -> showPreview(matches[position]) }
             channelsList.setSelection(0)
@@ -644,6 +649,13 @@ class MainActivity : Activity() {
             selectedGroup = choices[position].second
             refreshChannels()
         }
+        channelSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                refreshChannels()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
         refreshChannels()
     }
 
