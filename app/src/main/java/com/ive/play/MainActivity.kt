@@ -46,6 +46,7 @@ class MainActivity : Activity() {
     private var drawerOpen = false
     private var currentPage = "Início"
     private var playingKind: String? = null
+    private var resumePlaybackOnStart = false
 
     data class MediaEntry(val name: String, val url: String, val group: String, val kind: String = "TV ao Vivo", val image: String = "", val seriesId: String = "")
 
@@ -79,6 +80,7 @@ class MainActivity : Activity() {
     private fun begin(page: String, menu: Boolean = true, scrollable: Boolean = true) {
         player?.release()
         player = null
+        resumePlaybackOnStart = false
         currentPage = page
         if (page == "Início" || page == "TV ao Vivo" || page == "Menu") playingKind = null
         root = LinearLayout(this).apply {
@@ -828,8 +830,17 @@ class MainActivity : Activity() {
         button("INÍCIO", panel) { home() }
     }
 
+    override fun onStart() {
+        super.onStart()
+        if (resumePlaybackOnStart) {
+            player?.play()
+            resumePlaybackOnStart = false
+        }
+    }
+
     override fun onStop() {
-        // Avoid streaming video and audio when the user leaves the application.
+        // Pause background streams; resume only if they were playing beforehand.
+        resumePlaybackOnStart = player?.isPlaying == true
         player?.pause()
         super.onStop()
     }
