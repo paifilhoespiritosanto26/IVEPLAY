@@ -497,7 +497,7 @@ class MainActivity : Activity() {
                 return
             }
             matching.forEach { entry ->
-                val item = text("▶  ${entry.name}\\n${entry.group}", 15f, true).apply {
+                val item = text("▶  ${entry.name}\n${entry.group}", 15f, true).apply {
                     setPadding(dp(14), dp(12), dp(14), dp(12))
                     background = shape(panel, 12, Color.DKGRAY)
                     isFocusable = true
@@ -515,21 +515,7 @@ class MainActivity : Activity() {
             override fun afterTextChanged(s: Editable?) {}
         })
         showChannels("")
-        /* if (channels.isEmpty()) {
-            root.addView(text("Nenhum canal esportivo encontrado na lista carregada.", 14f, false, muted))
-        } else {
-            channels.forEach { entry ->
-                val item = text("▶  ${entry.name}\n${entry.group}", 15f, true).apply {
-                    setPadding(dp(14), dp(12), dp(14), dp(12))
-                    background = shape(panel, 12, Color.DKGRAY)
-                    isFocusable = true
-                    isClickable = true
-                    setOnClickListener { play(entry) }
-                }
-                root.addView(item, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
-            }
-        }
-        */
+
         gap(12)
         button("VOLTAR À PROGRAMAÇÃO", panel) { sportsSchedule() }
     }
