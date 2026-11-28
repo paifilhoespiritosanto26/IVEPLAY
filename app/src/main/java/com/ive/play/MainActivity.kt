@@ -145,8 +145,6 @@ class MainActivity : Activity() {
     }
 
     private fun loginScreen() {
-        val isTelevision = packageManager.hasSystemFeature("android.software.leanback") ||
-            packageManager.hasSystemFeature("android.hardware.type.television")
         // Keep the entire IVEPLAY experience landscape, including sign-in.
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         begin("Login", false)
@@ -659,9 +657,19 @@ class MainActivity : Activity() {
         preview.addView(playerView, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(6); bottomMargin = dp(6) })
         preview.addView(playerTitle)
         preview.addView(text("TELA CHEIA  ▶", 13f, true, orange).apply {
-            setPadding(0, dp(5), 0, dp(5))
+            gravity = Gravity.CENTER
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+            background = shape(panel, 8, orange)
             isFocusable = true
-            setOnClickListener { selected?.let { play(it) } }
+            isClickable = true
+            contentDescription = "Abrir canal selecionado em tela cheia"
+            setOnFocusChangeListener { view, focused ->
+                view.background = shape(if (focused) orange else panel, 8, orange)
+                setTextColor(if (focused) Color.BLACK else orange)
+            }
+            setOnClickListener {
+                selected?.let { play(it) } ?: toast("Selecione um canal primeiro")
+            }
         })
         fun showPreview(entry: MediaEntry) {
             selected = entry
