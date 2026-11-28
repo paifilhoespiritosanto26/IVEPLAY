@@ -620,6 +620,15 @@ class MainActivity : Activity() {
             screen.addView(channelsList, LinearLayout.LayoutParams(0, -1, 2.1f))
             screen.addView(preview, LinearLayout.LayoutParams(0, -1, 4.1f))
         }
+        // Column headings remain visible as users scroll through categories and channels.
+        if (!compact) {
+            groupsList.addHeaderView(text("CATEGORIAS", 12f, true, orange).apply {
+                setPadding(dp(8), dp(8), dp(4), dp(8))
+            }, null, false)
+            channelsList.addHeaderView(text("CANAIS", 12f, true, orange).apply {
+                setPadding(dp(8), dp(8), dp(4), dp(8))
+            }, null, false)
+        }
         nav.addView(text("♛ IVEPLAY", 17f, true, gold))
         listOf("Início", "TV ao Vivo", "Filmes", "Séries", "Esportes", "Infantil", "Favoritos", "Histórico", "Configurações").forEach { page ->
             nav.addView(text(page, 12f, page == "TV ao Vivo", if (page == "TV ao Vivo") orange else Color.WHITE).apply {
@@ -669,7 +678,10 @@ class MainActivity : Activity() {
                 (query.isBlank() || it.name.contains(query, ignoreCase = true))
         }
             channelsList.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, matches.map { "▶  " + it.name })
-            channelsList.setOnItemClickListener { _, _, position, _ -> showPreview(matches[position]) }
+            channelsList.setOnItemClickListener { _, _, position, _ ->
+                val index = if (compact) position else position - 1
+                matches.getOrNull(index)?.let { showPreview(it) }
+            }
             channelsList.setSelection(0)
         }
         val choices = listOf("Todos os Canais" to null) + groups.map { it to it }
@@ -677,7 +689,8 @@ class MainActivity : Activity() {
             if (group == null) "$name (${channels.size})" else "$name (${groupCounts[group.lowercase()] ?: 0})"
         })
         groupsList.setOnItemClickListener { _, _, position, _ ->
-            selectedGroup = choices[position].second
+            val index = if (compact) position else position - 1
+            selectedGroup = choices.getOrNull(index)?.second
             refreshChannels()
         }
         channelSearch.addTextChangedListener(object : TextWatcher {
