@@ -233,6 +233,7 @@ class MainActivity : Activity() {
     private fun navigate(page: String) {
         when (page) {
             "Início" -> home()
+            "TV ao Vivo" -> liveCatalog()
             "Configurações" -> settings()
             else -> catalog(page)
         }
