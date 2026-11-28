@@ -348,19 +348,26 @@ class MainActivity : Activity() {
         }
         hero.addView(text("♛  IVEPLAY", 29f, true, gold))
         hero.addView(text("Seu entretenimento em um só lugar", 16f, false, muted))
-        val featured = items.firstOrNull { it.kind == "Filmes" && validUrl(it.image) }
-            ?: items.firstOrNull { it.kind == "Séries" && validUrl(it.image) }
-        if (featured != null) {
-            val artwork = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; background = shape(panel, 12) }
-            hero.addView(artwork, LinearLayout.LayoutParams(-1, dp(145)).apply { topMargin = dp(10); bottomMargin = dp(8) })
-            loadPoster(artwork, featured.image)
-            hero.addView(text("EM DESTAQUE  •  " + featured.name, 15f, true, gold).apply { setOnClickListener { play(featured) } })
+        // Sports-first hero: no arbitrary movie artwork or unrelated promotions.
+        val sportsCount = items.count {
+            it.kind == "Esportes" || (it.kind == "TV ao Vivo" &&
+                listOf("esporte", "sport", "futebol").any { word ->
+                    it.group.contains(word, ignoreCase = true)
+                })
         }
-        hero.addView(text("TV ao vivo • Filmes • Séries", 14f, false, Color.WHITE).apply { setPadding(0, dp(12), 0, dp(12)) })
-        val watch = text(if (items.isEmpty()) "ADICIONAR CONTEÚDO" else "EXPLORAR CATÁLOGO", 15f, true).apply {
+        hero.addView(text("⚡  PROGRAMAÇÃO ESPORTIVA EM DESTAQUE", 19f, true, gold).apply {
+            setPadding(0, dp(14), 0, dp(6))
+        })
+        hero.addView(text(
+            if (sportsCount > 0) "$sportsCount opções esportivas disponíveis na sua lista"
+            else "Acompanhe os canais e conteúdos esportivos da sua lista",
+            14f, false, Color.WHITE
+        ).apply { setPadding(0, 0, 0, dp(12)) })
+        val watch = text(if (items.isEmpty()) "ADICIONAR CONTEÚDO" else "EXPLORAR ESPORTES", 15f, true).apply {
             gravity = Gravity.CENTER
             background = shape(orange)
-            setOnClickListener { if (items.isEmpty()) settings() else catalog("Filmes") }
+            isFocusable = true
+            setOnClickListener { if (items.isEmpty()) settings() else navigate("Esportes") }
         }
         hero.addView(watch, LinearLayout.LayoutParams(-1, dp(46)))
         root.addView(hero)
@@ -368,27 +375,37 @@ class MainActivity : Activity() {
         root.addView(text("Categorias", 21f, true))
         gap(10)
         val categories = listOf(
-            Triple("📺 TV ao Vivo", "TV ao Vivo", Color.rgb(155, 45, 18)),
-            Triple("🎬 Filmes", "Filmes", Color.rgb(20, 76, 145)),
-            Triple("🎞 Séries", "Séries", Color.rgb(96, 43, 138)),
-            Triple("⚽ Esportes", "Esportes", Color.rgb(27, 112, 64)),
-            Triple("🧸 Infantil", "Infantil", Color.rgb(158, 83, 27))
+            Triple("TV ao Vivo", R.drawable.ive_category_tv, Color.rgb(155, 45, 18)),
+            Triple("Filmes", R.drawable.ive_category_film, Color.rgb(20, 76, 145)),
+            Triple("Séries", R.drawable.ive_category_series, Color.rgb(96, 43, 138)),
+            Triple("Esportes", R.drawable.ive_category_sports, Color.rgb(27, 112, 64)),
+            Triple("Infantil", R.drawable.ive_category_kids, Color.rgb(158, 83, 27))
         )
         categories.chunked(2).forEach { pair ->
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            pair.forEach { (label, page, color) ->
-                val tile = text(label, 15f, true).apply {
+            pair.forEach { (page, iconRes, color) ->
+                val tile = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER
-                    background = shape(color)
+                    background = shape(color, 12)
                     isFocusable = true
                     isClickable = true
+                    contentDescription = "Abrir $page"
                     setOnFocusChangeListener { view, focused ->
                         view.background = shape(if (focused) orange else color, 12,
                             if (focused) gold else null)
                     }
                     setOnClickListener { navigate(page) }
                 }
-                row.addView(tile, LinearLayout.LayoutParams(0, dp(88), 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) })
+                tile.addView(ImageView(this).apply {
+                    setImageResource(iconRes)
+                    contentDescription = null
+                    isFocusable = false
+                }, LinearLayout.LayoutParams(dp(30), dp(30)).apply { rightMargin = dp(10) })
+                tile.addView(text(page, 15f, true))
+                row.addView(tile, LinearLayout.LayoutParams(0, dp(88), 1f).apply {
+                    setMargins(dp(3), dp(3), dp(3), dp(3))
+                })
             }
             if (pair.size == 1) row.addView(View(this), LinearLayout.LayoutParams(0, dp(88), 1f))
             root.addView(row)
@@ -763,7 +780,13 @@ class MainActivity : Activity() {
                 setOnClickListener { navigate(page) }
             })
         }
-        val channels = items.filter { it.kind == "TV ao Vivo" }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
+        val channels = items.filter { it.kind == "TV ao Vivo" }.sortedWith(
+            compareBy<MediaEntry> {
+                // Ignore leading channel numbers and separators when alphabetizing.
+                it.name.trim().replace(Regex("^\\\\d+[\\\\s._:|\\\\-]*"), "").ifBlank { it.name.trim() }
+                    .lowercase()
+            }.thenBy { it.name.lowercase() }
+        )
         val groups = channels.map { it.group.trim().ifBlank { "Outros" } }
             .distinctBy { it.lowercase() }.sortedWith(String.CASE_INSENSITIVE_ORDER)
         val groupCounts = channels.groupingBy { it.group.trim().ifBlank { "Outros" }.lowercase() }.eachCount()
