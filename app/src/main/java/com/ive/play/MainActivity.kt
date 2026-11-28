@@ -598,8 +598,20 @@ class MainActivity : Activity() {
         }
         root.addView(screen, LinearLayout.LayoutParams(-1, 0, 1f))
         val nav = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0); background = shape(panel, 10) }
-        val groupsList = ListView(this).apply { dividerHeight = dp(4); setBackgroundColor(bg); isFocusable = true; isFocusableInTouchMode = true }
-        val channelsList = ListView(this).apply { dividerHeight = dp(4); setBackgroundColor(bg); isFocusable = true; isFocusableInTouchMode = true }
+        val groupsList = ListView(this).apply {
+            dividerHeight = dp(3)
+            setBackgroundColor(bg)
+            isFocusable = true
+            choiceMode = ListView.CHOICE_MODE_SINGLE
+            selector = shape(Color.rgb(87, 43, 19), 8, orange)
+        }
+        val channelsList = ListView(this).apply {
+            dividerHeight = dp(3)
+            setBackgroundColor(bg)
+            isFocusable = true
+            choiceMode = ListView.CHOICE_MODE_SINGLE
+            selector = shape(Color.rgb(87, 43, 19), 8, orange)
+        }
         val preview = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0) }
         if (compact) {
             val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -707,9 +719,13 @@ class MainActivity : Activity() {
         })
         groupsList.setOnItemClickListener { _, _, position, _ ->
             val index = if (compact) position else position - 1
-            selectedGroup = choices.getOrNull(index)?.second
+            val choice = choices.getOrNull(index) ?: return@setOnItemClickListener
+            selectedGroup = choice.second
+            groupsList.setItemChecked(position, true)
             refreshChannels()
         }
+        // Start with "Todos os Canais" highlighted; TV remotes can navigate lists with DPAD.
+        groupsList.setItemChecked(if (compact) 0 else 1, true)
         channelSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
