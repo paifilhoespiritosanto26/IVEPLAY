@@ -154,10 +154,11 @@ class MainActivity : Activity() {
             adjustViewBounds = true
             scaleType = ImageView.ScaleType.FIT_CENTER
         }
-        root.addView(logo, LinearLayout.LayoutParams(-1, dp(110)))
-        root.addView(text("IVEPLAY", 32f, true, gold).apply { gravity = Gravity.CENTER })
+        val shortLandscape = resources.configuration.screenHeightDp < 420
+        root.addView(logo, LinearLayout.LayoutParams(-1, dp(if (shortLandscape) 56 else 110)))
+        root.addView(text("IVEPLAY", if (shortLandscape) 24f else 32f, true, gold).apply { gravity = Gravity.CENTER })
         root.addView(text("Seu entretenimento em um só lugar", 13f, false, muted).apply { gravity = Gravity.CENTER })
-        gap(24)
+        gap(if (shortLandscape) 8 else 24)
         val tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         root.addView(tabs)
         val form = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -311,7 +312,13 @@ class MainActivity : Activity() {
                 val tile = text(label, 15f, true).apply {
                     gravity = Gravity.CENTER
                     background = shape(color)
-                    setOnClickListener { catalog(page) }
+                    isFocusable = true
+                    isClickable = true
+                    setOnFocusChangeListener { view, focused ->
+                        view.background = shape(if (focused) orange else color, 12,
+                            if (focused) gold else null)
+                    }
+                    setOnClickListener { navigate(page) }
                 }
                 row.addView(tile, LinearLayout.LayoutParams(0, dp(88), 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) })
             }
