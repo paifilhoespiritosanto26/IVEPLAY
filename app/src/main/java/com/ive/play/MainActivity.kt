@@ -360,10 +360,27 @@ class MainActivity : Activity() {
         button("CARREGAR CONTEÚDO") {
             val link = input.text.toString().trim()
             if (!validUrl(link)) { toast("Informe uma URL HTTP ou HTTPS válida"); return@button }
-            fetch(link) { body ->
-                val found = parseM3u(body)
-                if (found.isEmpty()) toast("A URL respondeu, mas não trouxe canais M3U válidos. Confira o formato da lista.")
-                else { xtreamSession = null; items.clear(); items.addAll(found); toast("${items.size} itens carregados"); home() }
+            toast("Baixando e organizando lista M3U...")
+            thread {
+                try {
+                    // Both network and parsing can be expensive for very large playlists.
+                    val found = parseM3u(download(link))
+                    runOnUiThread {
+                        if (found.isEmpty()) {
+                            toast("A URL respondeu, mas não trouxe canais M3U válidos. Confira o formato da lista.")
+                        } else {
+                            xtreamSession = null
+                            items.clear()
+                            items.addAll(found)
+                            toast("${items.size} itens carregados")
+                            enterCatalog()
+                        }
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        toast("Falha ao carregar M3U: ${e.localizedMessage ?: "verifique o servidor"}")
+                    }
+                }
             }
         }
         button("VOLTAR", panel) { settings() }
