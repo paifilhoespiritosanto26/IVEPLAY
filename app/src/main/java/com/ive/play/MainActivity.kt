@@ -713,6 +713,11 @@ class MainActivity : Activity() {
             selector = shape(Color.rgb(87, 43, 19), 8, orange)
         }
         val preview = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0) }
+        // Explicit D-pad navigation prevents TV remotes from jumping between columns.
+        groupsList.id = View.generateViewId()
+        channelsList.id = View.generateViewId()
+        groupsList.nextFocusRightId = channelsList.id
+        channelsList.nextFocusLeftId = groupsList.id
         if (compact) {
             val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             val homeLink = text("♛ IVEPLAY   •   INÍCIO", 17f, true, gold).apply {
@@ -771,7 +776,7 @@ class MainActivity : Activity() {
         preview.addView(playerView, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(6); bottomMargin = dp(6) })
         preview.addView(playerTitle)
         preview.addView(playbackStatus)
-        preview.addView(text("TELA CHEIA  ▶", 13f, true, orange).apply {
+        val fullscreenButton = text("TELA CHEIA  ▶", 13f, true, orange).apply {
             gravity = Gravity.CENTER
             setPadding(dp(8), dp(8), dp(8), dp(8))
             background = shape(panel, 8, orange)
@@ -785,7 +790,11 @@ class MainActivity : Activity() {
             setOnClickListener {
                 selected?.let { play(it) } ?: toast("Selecione um canal primeiro")
             }
-        })
+        }
+        fullscreenButton.id = View.generateViewId()
+        channelsList.nextFocusRightId = fullscreenButton.id
+        fullscreenButton.nextFocusLeftId = channelsList.id
+        preview.addView(fullscreenButton)
         fun showPreview(entry: MediaEntry) {
             selected = entry
             playerTitle.text = entry.name
