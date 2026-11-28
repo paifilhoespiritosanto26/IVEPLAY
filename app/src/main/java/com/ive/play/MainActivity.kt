@@ -194,7 +194,7 @@ class MainActivity : Activity() {
                         if (!validUrl(url)) toast("Informe uma URL válida")
                         else fetch(url) { body ->
                             val found = parseM3u(body)
-                            if (found.isEmpty()) toast("Nenhum conteúdo encontrado")
+                            if (found.isEmpty()) toast("A URL respondeu, mas não trouxe canais M3U válidos. Confira o formato da lista.")
                             else { xtreamSession = null; items.clear(); items.addAll(found); enterCatalog() }
                         }
                     }
@@ -340,7 +340,7 @@ class MainActivity : Activity() {
             if (!validUrl(link)) { toast("Informe uma URL HTTP ou HTTPS válida"); return@button }
             fetch(link) { body ->
                 val found = parseM3u(body)
-                if (found.isEmpty()) toast("Nenhum conteúdo encontrado na lista")
+                if (found.isEmpty()) toast("A URL respondeu, mas não trouxe canais M3U válidos. Confira o formato da lista.")
                 else { xtreamSession = null; items.clear(); items.addAll(found); toast("${items.size} itens carregados"); home() }
             }
         }
@@ -429,9 +429,14 @@ class MainActivity : Activity() {
             connectTimeout = 12000
             readTimeout = 20000
             instanceFollowRedirects = true
+            setRequestProperty("Accept", "application/x-mpegURL, audio/x-mpegurl, text/plain, */*")
             setRequestProperty("User-Agent", "IVEPLAY/2.0")
         }
-        return try { connection.inputStream.bufferedReader().use { it.readText() } }
+        return try {
+            val status = connection.responseCode
+            if (status !in 200..299) throw java.io.IOException("Servidor respondeu HTTP $status")
+            connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+        }
         finally { connection.disconnect() }
     }
 
@@ -449,7 +454,7 @@ class MainActivity : Activity() {
         var name = "Canal"
         var group = "TV ao Vivo"
         for (line in content.lineSequence()) {
-            val s = line.trim()
+            val s = line.trim().removePrefix("\uFEFF")
             if (s.startsWith("#EXTINF", true)) {
                 name = s.substringAfterLast(',', "Canal").trim().ifBlank { "Canal" }
                 image = Regex("tvg-logo=\\\"([^\\\"]*)\\\"", RegexOption.IGNORE_CASE).find(s)?.groupValues?.get(1) ?: ""
