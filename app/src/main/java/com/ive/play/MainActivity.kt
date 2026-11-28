@@ -728,7 +728,8 @@ class MainActivity : Activity() {
         try {
             player = ExoPlayer.Builder(this).build().also {
                 view.player = it
-                it.setMediaItem(MediaItem.fromUri(entry.url))
+                attachPlaybackErrors(it)
+                it.setMediaItem(mediaItem(entry.url))
                 it.prepare()
                 it.playWhenReady = true
             }
