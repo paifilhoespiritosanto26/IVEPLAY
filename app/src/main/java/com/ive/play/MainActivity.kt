@@ -509,16 +509,41 @@ class MainActivity : Activity() {
             val goalsHome = score?.opt("home")
             val goalsAway = score?.opt("away")
             val scoreText = if ((live || finished) && goalsHome is Number && goalsAway is Number)
-                "  ${goalsHome.toInt()} × ${goalsAway.toInt()}" else ""
-            val card = text(
-                "${if (live) "🔴 " else if (finished) "🏁 " else "⚽ "}$homeTeam × $awayTeam$scoreText\n$competition • $kickoff (Brasília)",
-                14f, true
-            ).apply {
-                setPadding(dp(12), dp(10), dp(12), dp(10))
-                background = shape(panel, 10, if (live) orange else Color.DKGRAY)
+                "${goalsHome.toInt()}  ×  ${goalsAway.toInt()}" else "×"
+            val accent = if (live) Color.rgb(255, 77, 67) else if (finished) muted else gold
+            val card = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+                background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                    intArrayOf(Color.argb(65, Color.red(accent), Color.green(accent), Color.blue(accent)), panel)).apply {
+                    cornerRadius = dp(14).toFloat()
+                    setStroke(dp(1), Color.argb(170, Color.red(accent), Color.green(accent), Color.blue(accent)))
+                }
             }
+            val tag = if (live) "● AO VIVO" else if (finished) "ENCERRADO" else "AGENDADO"
+            card.addView(text("$tag  •  $competition", 12f, true, accent))
+            val confrontation = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            confrontation.addView(text(homeTeam, 15f, true).apply {
+                gravity = Gravity.CENTER
+                maxLines = 2
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            confrontation.addView(text(scoreText, 20f, true, accent).apply {
+                gravity = Gravity.CENTER
+            }, LinearLayout.LayoutParams(dp(84), -2))
+            confrontation.addView(text(awayTeam, 15f, true).apply {
+                gravity = Gravity.CENTER
+                maxLines = 2
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            card.addView(confrontation, LinearLayout.LayoutParams(-1, -2).apply {
+                topMargin = dp(10)
+                bottomMargin = dp(8)
+            })
+            card.addView(text("🕒  $kickoff • Horário de Brasília", 12f, false, muted))
             (if (live) liveRows else if (finished) finishedRows else upcomingRows).addView(card,
-                LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(7) })
+                LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
         }
         if (token.isBlank()) {
             status.text = "Para exibir jogos reais, configure sua chave gratuita da API esportiva."
@@ -555,7 +580,12 @@ class MainActivity : Activity() {
                     when (match.optString("status")) {
                         "LIVE", "IN_PLAY", "PAUSED" -> live.add(match)
                         "SCHEDULED", "TIMED" -> upcoming.add(match)
-                        "FINISHED" -> if (match.optString("utcDate").startsWith(today.toString())) finished.add(match)
+                        "FINISHED" -> {
+                            val matchDate = try {
+                                java.time.Instant.parse(match.getString("utcDate")).atZone(zone).toLocalDate()
+                            } catch (_: Exception) { null }
+                            if (matchDate == today) finished.add(match)
+                        }
                     }
                 }
                 upcoming.sortBy { it.optString("utcDate") }
