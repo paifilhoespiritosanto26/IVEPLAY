@@ -147,8 +147,8 @@ class MainActivity : Activity() {
     private fun loginScreen() {
         val isTelevision = packageManager.hasSystemFeature("android.software.leanback") ||
             packageManager.hasSystemFeature("android.hardware.type.television")
-        requestedOrientation = if (isTelevision) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-            else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        // Keep the entire IVEPLAY experience landscape, including sign-in.
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         begin("Login", false)
         root.gravity = Gravity.CENTER_HORIZONTAL
         val logo = ImageView(this).apply {
@@ -634,6 +634,15 @@ class MainActivity : Activity() {
             nav.addView(text(page, 12f, page == "TV ao Vivo", if (page == "TV ao Vivo") orange else Color.WHITE).apply {
                 setPadding(dp(6), dp(10), 0, dp(10))
                 isFocusable = true
+                isClickable = true
+                background = shape(if (page == "TV ao Vivo") Color.rgb(63, 33, 18) else panel, 8)
+                setOnFocusChangeListener { view, focused ->
+                    view.background = shape(
+                        if (focused) orange else if (page == "TV ao Vivo") Color.rgb(63, 33, 18) else panel,
+                        8
+                    )
+                    setTextColor(if (focused) Color.BLACK else if (page == "TV ao Vivo") orange else Color.WHITE)
+                }
                 setOnClickListener { navigate(page) }
             })
         }
