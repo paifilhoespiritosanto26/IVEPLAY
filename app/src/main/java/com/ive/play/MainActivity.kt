@@ -828,6 +828,12 @@ class MainActivity : Activity() {
         button("INÍCIO", panel) { home() }
     }
 
+    override fun onStop() {
+        // Avoid streaming video and audio when the user leaves the application.
+        player?.pause()
+        super.onStop()
+    }
+
     override fun onDestroy() { player?.release(); player = null; imageLoader.shutdownNow(); super.onDestroy() }
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
