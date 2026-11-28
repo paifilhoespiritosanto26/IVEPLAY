@@ -589,7 +589,7 @@ class MainActivity : Activity() {
         // Full-screen layout keeps the channel lists independently scrollable.
         begin("TV ao Vivo", false, false)
         val channelSearch = field("Buscar canal pelo nome")
-        val compact = resources.configuration.screenWidthDp < 650
+        val compact = resources.configuration.screenWidthDp < 480
         val screen = LinearLayout(this).apply {
             orientation = if (compact) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
         }
@@ -610,10 +610,10 @@ class MainActivity : Activity() {
             top.addView(channelsList, LinearLayout.LayoutParams(0, -1, 1.9f))
             screen.addView(preview, LinearLayout.LayoutParams(-1, dp(245)))
         } else {
-            screen.addView(ScrollView(this).apply { addView(nav) }, LinearLayout.LayoutParams(0, -1, 1.2f))
-            screen.addView(groupsList, LinearLayout.LayoutParams(0, -1, 1.6f))
-            screen.addView(channelsList, LinearLayout.LayoutParams(0, -1, 2.2f))
-            screen.addView(preview, LinearLayout.LayoutParams(0, -1, 3.2f))
+            screen.addView(ScrollView(this).apply { addView(nav) }, LinearLayout.LayoutParams(0, -1, 0.85f))
+            screen.addView(groupsList, LinearLayout.LayoutParams(0, -1, 1.5f))
+            screen.addView(channelsList, LinearLayout.LayoutParams(0, -1, 2.1f))
+            screen.addView(preview, LinearLayout.LayoutParams(0, -1, 4.1f))
         }
         nav.addView(text("♛ IVEPLAY", 17f, true, gold))
         listOf("Início", "TV ao Vivo", "Filmes", "Séries", "Esportes", "Infantil", "Favoritos", "Histórico", "Configurações").forEach { page ->
@@ -633,11 +633,10 @@ class MainActivity : Activity() {
         val playerTitle = text("Selecione um canal", 15f, true, orange)
         preview.addView(text("PRÉ-VISUALIZAÇÃO", 14f, true, orange))
         preview.addView(text("${channels.size} canais carregados", 11f, false, muted))
-        preview.addView(playerView, LinearLayout.LayoutParams(-1, dp(if (compact) 110 else 190)).apply { topMargin = dp(10) })
+        preview.addView(playerView, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(6); bottomMargin = dp(6) })
         preview.addView(playerTitle)
-        preview.addView(text("Programação EPG não disponível nesta versão", 12f, false, muted))
         preview.addView(text("TELA CHEIA  ▶", 13f, true, orange).apply {
-            setPadding(0, dp(14), 0, dp(10))
+            setPadding(0, dp(5), 0, dp(5))
             isFocusable = true
             setOnClickListener { selected?.let { play(it) } }
         })
