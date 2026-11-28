@@ -1398,7 +1398,7 @@ class MainActivity : Activity() {
         }
         if (entry.url.isBlank()) { toast("Conteúdo sem endereço de reprodução"); return }
         // Remember the originating page so Back returns to the sports channel list.
-        val origin = currentPage
+        val origin = if (playbackOrigin == "Canais esportivos" && playingKind == "TV ao Vivo" && player != null) "Canais esportivos" else currentPage
         begin(entry.name, menu = false, scrollable = false)
         playbackOrigin = origin
         root.setPadding(dp(6), dp(4), dp(6), dp(6))
@@ -1445,6 +1445,33 @@ class MainActivity : Activity() {
             }
         }
         playbackActions.addView(backAction, LinearLayout.LayoutParams(dp(115), dp(42)))
+        if (origin == "Canais esportivos" && entry.kind == "TV ao Vivo") {
+            val sportsList = filtered("Esportes")
+                .filter { it.kind == "TV ao Vivo" && it.url.isNotBlank() }
+                .sortedBy { it.name.lowercase(java.util.Locale.ROOT) }
+            val currentIndex = sportsList.indexOfFirst { it.url == entry.url }
+            fun channelSwitch(label: String, offset: Int): TextView = text(label, 12f, true, gold).apply {
+                gravity = Gravity.CENTER
+                isFocusable = true
+                isClickable = true
+                background = shape(panel, 8, gold)
+                setOnFocusChangeListener { v, focused ->
+                    v.background = shape(if (focused) gold else panel, 8, gold)
+                    setTextColor(if (focused) Color.BLACK else gold)
+                }
+                setOnClickListener {
+                    if (currentIndex >= 0 && sportsList.size > 1) {
+                        val nextIndex = (currentIndex + offset + sportsList.size) % sportsList.size
+                        sportsChannelSelectedUrl = sportsList[nextIndex].url
+                        play(sportsList[nextIndex])
+                    }
+                }
+            }
+            playbackActions.addView(channelSwitch("◀ CANAL", -1),
+                LinearLayout.LayoutParams(dp(95), dp(42)).apply { leftMargin = dp(5) })
+            playbackActions.addView(channelSwitch("CANAL ▶", 1),
+                LinearLayout.LayoutParams(dp(95), dp(42)).apply { leftMargin = dp(5) })
+        }
         playbackActions.addView(text(entry.name, 14f, true).apply {
             gravity = Gravity.CENTER
             maxLines = 1
