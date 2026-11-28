@@ -453,9 +453,9 @@ class MainActivity : Activity() {
         var name = "Canal"
         var group = "TV ao Vivo"
         var image = ""
-        val attr = Regex("""([\\w-]+)\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s]+))""")
+        val attr = Regex("""([\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s]+))""")
         for (raw in content.lineSequence()) {
-            val line = raw.trim().removePrefix("\\uFEFF")
+            val line = raw.trim().removePrefix("\uFEFF")
             when {
                 line.startsWith("#EXTINF", true) -> {
                     name = line.substringAfter(',', "Canal").trim().ifBlank { "Canal" }
