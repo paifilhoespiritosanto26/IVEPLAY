@@ -246,7 +246,7 @@ class MainActivity : Activity() {
         loginFields.addView(tabs)
         val form = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         loginFields.addView(form)
-        var xtream = true
+        var xtream = false
         fun renderForm() {
             tabs.removeAllViews()
             form.removeAllViews()
@@ -285,7 +285,7 @@ class MainActivity : Activity() {
                             android.text.InputType.TYPE_TEXT_VARIATION_URI
                         else -> android.text.InputType.TYPE_CLASS_TEXT
                     }
-                    imeOptions = if (secret || hint == "URL da lista M3U") {
+                    imeOptions = if (secret || hint.startsWith("Lista M3U")) {
                         android.view.inputmethod.EditorInfo.IME_ACTION_DONE
                     } else {
                         android.view.inputmethod.EditorInfo.IME_ACTION_NEXT
@@ -296,8 +296,11 @@ class MainActivity : Activity() {
                 form.addView(v, LinearLayout.LayoutParams(-1, dp(50)).apply { topMargin = dp(12) })
                 return v
             }
-            val listName = if (!xtream) input("Nome da lista") else null
+            val listName = if (!xtream) input("Nome da lista").apply {
+                setText(getPreferences(MODE_PRIVATE).getString("saved_m3u_name", ""))
+            } else null
             val server = input(if (xtream) "URL do servidor" else "Lista M3U (URL http:// ou https://)")
+            if (!xtream) server.setText(getPreferences(MODE_PRIVATE).getString("saved_m3u_url", ""))
             val user = if (xtream) input("Usuário") else null
             val pass = if (xtream) input("Senha", true) else null
             val keep = CheckBox(this).apply {
@@ -334,15 +337,27 @@ class MainActivity : Activity() {
                         val url = server.text.toString().trim()
                         if (name.isBlank()) toast("Informe o nome da lista")
                         else if (!validUrl(url)) toast("Informe uma URL M3U HTTP ou HTTPS válida")
-                        else fetch(url) { body ->
-                            val found = parseM3u(body)
-                            if (found.isEmpty()) toast("A URL respondeu, mas não trouxe canais M3U válidos. Confira o formato da lista.")
-                            else {
-                                xtreamSession = null
-                                items.clear()
-                                items.addAll(found)
-                                saveM3uSession(name, url, keep.isChecked)
-                                enterCatalog()
+                        else {
+                            val keepConnected = keep.isChecked
+                            toast("Conectando à lista M3U...")
+                            thread {
+                                try {
+                                    val found = parseM3u(download(url))
+                                    runOnUiThread {
+                                        if (found.isEmpty()) toast("Lista M3U vazia ou inválida. Verifique a URL e o formato.")
+                                        else {
+                                            xtreamSession = null
+                                            items.clear()
+                                            items.addAll(found)
+                                            saveM3uSession(name, url, keepConnected)
+                                            enterCatalog()
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    runOnUiThread {
+                                        toast("Falha na conexão M3U: ${e.localizedMessage ?: "verifique a URL e o servidor"}")
+                                    }
+                                }
                             }
                         }
                     }
