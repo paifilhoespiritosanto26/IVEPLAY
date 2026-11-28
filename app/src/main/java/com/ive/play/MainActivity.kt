@@ -87,7 +87,7 @@ class MainActivity : Activity() {
                 }
             } catch (e: Exception) {
                 runOnUiThread {
-                    toast("Não foi possível restaurar a lista. Verifique a internet ou o servidor.")
+                    toast(connectionMessage(e))
                     loginScreen()
                 }
             }
@@ -355,7 +355,7 @@ class MainActivity : Activity() {
                                     }
                                 } catch (e: Exception) {
                                     runOnUiThread {
-                                        toast("Falha na conexão M3U: ${e.localizedMessage ?: "verifique a URL e o servidor"}")
+                                        toast(connectionMessage(e))
                                     }
                                 }
                             }
@@ -861,7 +861,7 @@ class MainActivity : Activity() {
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        toast("Falha ao carregar M3U: ${e.localizedMessage ?: "verifique o servidor"}")
+                        toast(connectionMessage(e))
                     }
                 }
             }
@@ -965,7 +965,19 @@ class MainActivity : Activity() {
         })
     }
 
-    private fun validUrl(value: String) = value.startsWith("https://", true) || value.startsWith("http://", true)
+    private fun validUrl(value: String): Boolean = try {
+        val uri = java.net.URI(value.trim())
+        (uri.scheme.equals("https", true) || uri.scheme.equals("http", true)) &&
+            !uri.host.isNullOrBlank()
+    } catch (_: Exception) { false }
+
+    private fun connectionMessage(error: Exception): String = when (error) {
+        is java.net.SocketTimeoutException -> "Tempo esgotado. O servidor demorou para responder."
+        is java.net.UnknownHostException -> "Servidor não encontrado. Confira o endereço e a internet."
+        is javax.net.ssl.SSLException -> "Falha na conexão segura HTTPS. Confira o servidor."
+        is java.net.ConnectException -> "Servidor recusou a conexão ou está indisponível."
+        else -> "Falha ao conectar: ${error.localizedMessage ?: "verifique a URL e o servidor"}"
+    }
 
     private fun download(link: String): String {
         val connection = (URL(link).openConnection() as HttpURLConnection).apply {
@@ -987,7 +999,7 @@ class MainActivity : Activity() {
         toast("Conectando...")
         thread {
             try { val result = download(link); runOnUiThread { done(result) } }
-            catch (e: Exception) { runOnUiThread { toast("Falha na conexão: ${e.localizedMessage ?: "verifique o servidor"}") } }
+            catch (e: Exception) { runOnUiThread { toast(connectionMessage(e)) } }
         }
     }
 
