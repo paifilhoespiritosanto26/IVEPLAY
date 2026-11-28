@@ -1,9 +1,12 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="192dp" android:height="192dp"
-    android:viewportWidth="192" android:viewportHeight="192">
+    android:width="192dp"
+    android:height="192dp"
+    android:viewportWidth="192"
+    android:viewportHeight="192">
+    <!-- Launcher icon: crown + play mark, legible even at small Android icon sizes. -->
     <path android:fillColor="#09090C" android:pathData="M0,0h192v192h-192z"/>
-    <path android:fillColor="#FFAA28" android:pathData="M30,64 L41,38 L66,55 L96,22 L126,55 L151,38 L162,64 L151,83 L41,83 Z"/>
-    <path android:fillColor="#FF6A16" android:pathData="M42,89 L150,89 L145,100 L47,100 Z"/>
-    <path android:fillColor="#FFFFFF" android:pathData="M35,114 L45,114 L45,155 L35,155 Z M52,114 L62,114 L73,143 L84,114 L94,114 L78,155 L68,155 Z M101,114 L133,114 L133,123 L111,123 L111,130 L130,130 L130,139 L111,139 L111,146 L133,146 L133,155 L101,155 Z"/>
-    <path android:fillColor="#FF6A16" android:pathData="M141,114 L152,114 L152,146 L170,146 L170,155 L141,155 Z"/>
+    <path android:fillColor="#FFAA28" android:pathData="M27,70 L39,37 L66,56 L96,23 L126,56 L153,37 L165,70 L153,87 L39,87 Z"/>
+    <path android:fillColor="#FF6A16" android:pathData="M39,92 L153,92 L148,103 L44,103 Z"/>
+    <path android:fillColor="#FF6A16" android:pathData="M54,111 L138,111 Q147,111 147,120 L147,160 Q147,169 138,169 L54,169 Q45,169 45,160 L45,120 Q45,111 54,111 Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M82,121 L82,159 L118,140 Z"/>
 </vector>
