@@ -476,6 +476,22 @@ class MainActivity : Activity() {
         }
     }
 
+    // EXTINF titles start after the first comma outside quoted attribute values.
+    private fun extinfSeparator(line: String): Int {
+        var quote: Char? = null
+        for (index in line.indices) {
+            val char = line[index]
+            if (quote != null) {
+                if (char == quote) quote = null
+            } else if (char == '"' || char == '\'') {
+                quote = char
+            } else if (char == ',') {
+                return index
+            }
+        }
+        return -1
+    }
+
     private fun parseM3u(content: String): List<MediaEntry> {
         val result = mutableListOf<MediaEntry>()
         var name = "Canal"
@@ -486,10 +502,13 @@ class MainActivity : Activity() {
             val line = raw.trim().removePrefix("\uFEFF")
             when {
                 line.startsWith("#EXTINF", true) -> {
-                    name = line.substringAfter(',', "Canal").trim().ifBlank { "Canal" }
-                    val attributes = attr.findAll(line.substringBeforeLast(',', line)).associate {
+                    val separator = extinfSeparator(line)
+                    val metadata = if (separator >= 0) line.substring(0, separator) else line
+                    val attributes = attr.findAll(metadata).associate {
                         it.groupValues[1].lowercase() to (it.groupValues[2].ifBlank { it.groupValues[3].ifBlank { it.groupValues[4] } })
                     }
+                    name = (if (separator >= 0) line.substring(separator + 1).trim() else "")
+                        .ifBlank { attributes["tvg-name"].orEmpty().ifBlank { "Canal" } }
                     image = attributes["tvg-logo"].orEmpty()
                     group = attributes["group-title"].orEmpty().ifBlank { "TV ao Vivo" }
                 }
