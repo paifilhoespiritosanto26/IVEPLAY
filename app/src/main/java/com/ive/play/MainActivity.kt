@@ -665,8 +665,9 @@ class MainActivity : Activity() {
         val playerView = PlayerView(this).apply { useController = true; setBackgroundColor(Color.BLACK) }
         val playerTitle = text("Selecione um canal", 15f, true, orange)
         val playbackStatus = text("Escolha um canal para começar", 11f, false, muted)
+        val channelCount = text("", 11f, false, muted)
         preview.addView(text("PRÉ-VISUALIZAÇÃO", 14f, true, orange))
-        preview.addView(text("${channels.size} canais carregados", 11f, false, muted))
+        preview.addView(channelCount)
         preview.addView(playerView, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(6); bottomMargin = dp(6) })
         preview.addView(playerTitle)
         preview.addView(playbackStatus)
@@ -727,16 +728,26 @@ class MainActivity : Activity() {
         }
         fun refreshChannels() {
             val query = channelSearch.text.toString().trim()
-        val matches = channels.filter {
-            (selectedGroup == null || it.group.trim().ifBlank { "Outros" }.equals(selectedGroup, ignoreCase = true)) &&
-                (query.isBlank() || it.name.contains(query, ignoreCase = true))
-        }
-            channelsList.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, matches.map { "▶  " + it.name })
+            val matches = channels.filter {
+                (selectedGroup == null || it.group.trim().ifBlank { "Outros" }
+                    .equals(selectedGroup, ignoreCase = true)) &&
+                    (query.isBlank() || it.name.contains(query, ignoreCase = true))
+            }
+            channelCount.text = "${matches.size} de ${channels.size} canais"
+            val labels = if (matches.isEmpty()) {
+                listOf(if (channels.isEmpty()) "Nenhum canal carregado" else "Nenhum canal encontrado")
+            } else {
+                matches.map { "▶  " + it.name }
+            }
+            channelsList.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)
             channelsList.setOnItemClickListener { _, _, position, _ ->
                 val index = if (compact) position else position - 1
-                matches.getOrNull(index)?.let { showPreview(it) }
+                matches.getOrNull(index)?.let { entry ->
+                    channelsList.setItemChecked(position, true)
+                    showPreview(entry)
+                }
             }
-            channelsList.setSelection(0)
+            channelsList.setSelection(if (compact) 0 else 1)
         }
         val choices = listOf("Todos os Canais" to null) + groups.map { it to it }
         groupsList.adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, choices.map { (name, group) ->
