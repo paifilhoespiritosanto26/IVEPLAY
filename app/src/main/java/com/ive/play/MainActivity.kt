@@ -473,11 +473,45 @@ class MainActivity : Activity() {
         root.addView(text("Assista no celular, Android TV ou TV Box", 13f, false, muted).apply { gravity = Gravity.CENTER })
     }
 
+    private fun sportsChannelsPage() {
+        begin("Canais esportivos")
+        root.addView(text("📺  CANAIS ESPORTIVOS", 22f, true, gold))
+        root.addView(text("Canais disponíveis na sua própria lista. A presença de um canal não confirma a transmissão de um jogo.", 13f, false, muted))
+        gap(12)
+        val channels = filtered("Esportes")
+            .filter { it.kind == "TV ao Vivo" && it.url.isNotBlank() }
+            .sortedBy { it.name.trim().replace(Regex("""^\\d+[\\s._:|\\-]*"""), "").lowercase(java.util.Locale.ROOT) }
+        if (channels.isEmpty()) {
+            root.addView(text("Nenhum canal esportivo encontrado na lista carregada.", 14f, false, muted))
+        } else {
+            channels.forEach { entry ->
+                val item = text("▶  ${entry.name}\n${entry.group}", 15f, true).apply {
+                    setPadding(dp(14), dp(12), dp(14), dp(12))
+                    background = shape(panel, 12, Color.DKGRAY)
+                    isFocusable = true
+                    isClickable = true
+                    setOnClickListener { play(entry) }
+                }
+                root.addView(item, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+            }
+        }
+        gap(12)
+        button("VOLTAR À PROGRAMAÇÃO", panel) { sportsSchedule() }
+    }
+
     private fun sportsSchedule() {
         begin("Esportes")
         root.addView(text("⚽  JOGOS E PROGRAMAÇÃO", 22f, true, gold))
         root.addView(text("Brasileirão • Champions League • principais ligas", 13f, false, muted))
         gap(10)
+        val sportsChannels = filtered("Esportes").filter { it.kind == "TV ao Vivo" && it.url.isNotBlank() }
+            .sortedBy { it.name.lowercase(java.util.Locale.ROOT) }
+        if (sportsChannels.isNotEmpty()) {
+            button("📺  CANAIS ESPORTIVOS DA MINHA LISTA (${sportsChannels.size})", panel) {
+                sportsChannelsPage()
+            }
+            gap(8)
+        }
         val token = getPreferences(MODE_PRIVATE).getString("football_data_token", "") ?: ""
         val status = text("Consultando programação...", 13f, false, muted)
         root.addView(status)
