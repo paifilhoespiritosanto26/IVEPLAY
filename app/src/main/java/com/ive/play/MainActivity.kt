@@ -664,10 +664,12 @@ class MainActivity : Activity() {
         var selected: MediaEntry? = null
         val playerView = PlayerView(this).apply { useController = true; setBackgroundColor(Color.BLACK) }
         val playerTitle = text("Selecione um canal", 15f, true, orange)
+        val playbackStatus = text("Escolha um canal para começar", 11f, false, muted)
         preview.addView(text("PRÉ-VISUALIZAÇÃO", 14f, true, orange))
         preview.addView(text("${channels.size} canais carregados", 11f, false, muted))
         preview.addView(playerView, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(6); bottomMargin = dp(6) })
         preview.addView(playerTitle)
+        preview.addView(playbackStatus)
         preview.addView(text("TELA CHEIA  ▶", 13f, true, orange).apply {
             gravity = Gravity.CENTER
             setPadding(dp(8), dp(8), dp(8), dp(8))
@@ -686,19 +688,42 @@ class MainActivity : Activity() {
         fun showPreview(entry: MediaEntry) {
             selected = entry
             playerTitle.text = entry.name
+            playbackStatus.text = "Conectando ao canal..."
             player?.release()
             player = null
             playerView.player = null
-            if (entry.url.isBlank()) { toast("Canal sem endereço de reprodução"); return }
+            if (entry.url.isBlank()) {
+                playbackStatus.text = "Canal sem endereço de reprodução"
+                toast("Canal sem endereço de reprodução")
+                return
+            }
             try {
-                player = ExoPlayer.Builder(this).build().also {
-                    playerView.player = it
-                    attachPlaybackErrors(it)
-                    it.setMediaItem(mediaItem(entry.url))
-                    it.prepare()
-                    it.playWhenReady = true
+                player = ExoPlayer.Builder(this).build().also { instance ->
+                    playerView.player = instance
+                    attachPlaybackErrors(instance)
+                    instance.addListener(object : Player.Listener {
+                        override fun onPlaybackStateChanged(state: Int) {
+                            if (player !== instance) return
+                            playbackStatus.text = when (state) {
+                                Player.STATE_BUFFERING -> "Carregando transmissão..."
+                                Player.STATE_READY -> "Transmissão pronta"
+                                Player.STATE_ENDED -> "Transmissão encerrada"
+                                else -> "Aguardando transmissão..."
+                            }
+                        }
+                        override fun onPlayerError(error: PlaybackException) {
+                            if (player === instance) playbackStatus.text =
+                                "Não foi possível reproduzir este canal"
+                        }
+                    })
+                    instance.setMediaItem(mediaItem(entry.url))
+                    instance.prepare()
+                    instance.playWhenReady = true
                 }
-            } catch (_: Exception) { toast("Não foi possível abrir a pré-visualização") }
+            } catch (_: Exception) {
+                playbackStatus.text = "Falha ao abrir a pré-visualização"
+                toast("Não foi possível abrir a pré-visualização")
+            }
         }
         fun refreshChannels() {
             val query = channelSearch.text.toString().trim()
