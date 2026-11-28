@@ -1474,7 +1474,14 @@ class MainActivity : Activity() {
             playbackActions.addView(channelSwitch("CANAL ▶", 1),
                 LinearLayout.LayoutParams(dp(95), dp(42)).apply { leftMargin = dp(5) })
         }
-        playbackActions.addView(text(entry.name, 14f, true).apply {
+        val playbackLabel = if (origin == "Canais esportivos" && entry.kind == "TV ao Vivo") {
+            val sportsList = filtered("Esportes").filter { it.kind == "TV ao Vivo" && it.url.isNotBlank() }
+                .sortedBy { it.name.lowercase(java.util.Locale.ROOT) }
+            val position = sportsList.indexOfFirst { it.url == entry.url }
+            val count = if (position >= 0) " • ${position + 1}/${sportsList.size}" else ""
+            "${entry.name}$count"
+        } else entry.name
+        playbackActions.addView(text(playbackLabel, 14f, true).apply {
             gravity = Gravity.CENTER
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
