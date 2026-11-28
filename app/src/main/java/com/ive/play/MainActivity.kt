@@ -377,6 +377,7 @@ class MainActivity : Activity() {
             val p = URLEncoder.encode(password, "UTF-8")
             val found = mutableListOf<MediaEntry>()
             val actions = listOf("get_live_streams", "get_vod_streams", "get_series")
+            val failures = mutableListOf<String>()
             toast("Carregando catálogo...")
             thread {
                 try {
@@ -422,11 +423,13 @@ class MainActivity : Activity() {
                                     "get_series" -> found.add(MediaEntry(name, "", group, "Séries", obj.optString("cover"), id))
                                 }
                             }
-                        } catch (_: Exception) { /* Some authorized servers expose only selected categories. */ }
+                        } catch (e: Exception) {
+                            failures.add("$action: ${e.localizedMessage ?: "resposta inválida"}")
+                        }
                     }
                     runOnUiThread {
-                        if (found.isEmpty()) toast("Não foi possível carregar o catálogo. Confira o acesso.")
-                        else { xtreamSession = Triple(host, username, password); items.clear(); items.addAll(found); toast("${items.size} itens carregados"); onSuccess() }
+                        if (found.isEmpty()) toast("Catálogo vazio. ${failures.firstOrNull() ?: "Verifique usuário, senha e permissões da lista."}")
+                        else { xtreamSession = Triple(host, username, password); items.clear(); items.addAll(found); toast("${items.size} itens carregados" + if (failures.isNotEmpty()) " • Algumas categorias falharam" else ""); onSuccess() }
                     }
                 } catch (e: Exception) { runOnUiThread { toast("Erro ao carregar: ${e.localizedMessage}") } }
             }
