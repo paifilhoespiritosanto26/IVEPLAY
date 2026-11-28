@@ -21,6 +21,7 @@ import androidx.media3.ui.PlayerView
 import org.json.JSONArray
 import org.json.JSONObject
 import android.graphics.BitmapFactory
+import java.util.concurrent.Executors
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -38,6 +39,7 @@ class MainActivity : Activity() {
     private val favorites = linkedSetOf<String>()
     private val history = mutableListOf<String>()
     private var xtreamSession: Triple<String, String, String>? = null
+    private val imageLoader = Executors.newFixedThreadPool(3)
     private var drawerOpen = false
     private var currentPage = "Início"
 
@@ -670,14 +672,37 @@ class MainActivity : Activity() {
 
     private fun loadPoster(target: ImageView, link: String) {
         if (!validUrl(link)) return
-        thread {
+        target.tag = link
+        imageLoader.execute {
             try {
                 val conn = URL(link).openConnection() as HttpURLConnection
                 conn.connectTimeout = 8000
                 conn.readTimeout = 10000
-                val bitmap = try { conn.inputStream.use { BitmapFactory.decodeStream(it) } } finally { conn.disconnect() }
-                if (bitmap != null) runOnUiThread { target.setImageBitmap(bitmap) }
-            } catch (_: Exception) { /* Keep placeholder if the source image is unavailable. */ }
+                val bytes = try {
+                    conn.inputStream.use { input ->
+                        val output = java.io.ByteArrayOutputStream()
+                        val chunk = ByteArray(8192)
+                        var total = 0
+                        while (true) {
+                            val read = input.read(chunk)
+                            if (read < 0) break
+                            total += read
+                            if (total > 4 * 1024 * 1024) return@execute
+                            output.write(chunk, 0, read)
+                        }
+                        output.toByteArray()
+                    }
+                } finally { conn.disconnect() }
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                var sample = 1
+                while (bounds.outWidth / sample > 640 || bounds.outHeight / sample > 640) sample *= 2
+                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size,
+                    BitmapFactory.Options().apply { inSampleSize = sample })
+                if (bitmap != null) runOnUiThread {
+                    if (target.tag == link && target.isAttachedToWindow) target.setImageBitmap(bitmap)
+                }
+            } catch (_: Exception) { /* Unavailable artwork must not interrupt browsing. */ }
         }
     }
 
