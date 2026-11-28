@@ -177,8 +177,11 @@ class MainActivity : Activity() {
                 text = "Manter conectado"
                 setTextColor(Color.WHITE)
                 buttonTintList = ColorStateList.valueOf(orange)
+                isEnabled = false
+                alpha = 0.55f
             }
             form.addView(keep)
+            form.addView(text("Salvar o acesso com segurança estará disponível em uma próxima versão.", 12f, false, muted))
             form.addView(text("ENTRAR", 17f, true, Color.BLACK).apply {
                 gravity = Gravity.CENTER
                 background = shape(orange)
@@ -201,7 +204,6 @@ class MainActivity : Activity() {
                             else { xtreamSession = null; items.clear(); items.addAll(found); enterCatalog() }
                         }
                     }
-                    if (keep.isChecked) toast("Manter conectado requer armazenamento seguro, ainda em desenvolvimento.")
                 }
             }, LinearLayout.LayoutParams(-1, dp(54)).apply { topMargin = dp(12) })
         }
