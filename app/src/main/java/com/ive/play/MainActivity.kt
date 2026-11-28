@@ -47,6 +47,8 @@ class MainActivity : Activity() {
     private var currentPage = "Início"
     private var playingKind: String? = null
     private var resumePlaybackOnStart = false
+    private val sportsRefreshHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var sportsRefreshTask: Runnable? = null
 
     data class MediaEntry(val name: String, val url: String, val group: String, val kind: String = "TV ao Vivo", val image: String = "", val seriesId: String = "")
 
@@ -78,6 +80,8 @@ class MainActivity : Activity() {
     private fun toast(value: String) = Toast.makeText(this, value, Toast.LENGTH_LONG).show()
 
     private fun begin(page: String, menu: Boolean = true, scrollable: Boolean = true) {
+        sportsRefreshTask?.let { sportsRefreshHandler.removeCallbacks(it) }
+        sportsRefreshTask = null
         player?.release()
         player = null
         resumePlaybackOnStart = false
@@ -554,6 +558,11 @@ class MainActivity : Activity() {
             return
         }
         button("ATUALIZAR JOGOS") { sportsSchedule() }
+        // Refresh only while the sports page remains visible.
+        sportsRefreshTask = Runnable {
+            if (currentPage == "Esportes" && !isFinishing && !isDestroyed) sportsSchedule()
+        }
+        sportsRefreshHandler.postDelayed(sportsRefreshTask!!, 120_000L)
         thread {
             try {
                 val today = java.time.LocalDate.now(zone)
@@ -592,7 +601,7 @@ class MainActivity : Activity() {
                 finished.sortByDescending { it.optString("utcDate") }
                 runOnUiThread {
                     if (currentPage != "Esportes") return@runOnUiThread
-                    status.text = "Dados: football-data.org • Horário de Brasília • Atualize para consultar novamente"
+                    status.text = "Dados: football-data.org • Brasília • Atualização automática a cada 2 minutos"
                     if (live.isEmpty()) liveRows.addView(text("Nenhum jogo ao vivo informado pela API.", 13f, false, muted))
                     else live.forEach { renderMatch(it, true) }
                     if (upcoming.isEmpty()) upcomingRows.addView(text("Nenhum próximo jogo informado pela API.", 13f, false, muted))
