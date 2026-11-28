@@ -1037,13 +1037,18 @@ class MainActivity : Activity() {
             return
         }
         if (entry.url.isBlank()) { toast("Conteúdo sem endereço de reprodução"); return }
-        begin(entry.name)
+        // Dedicated landscape playback screen: prioritize video over scrolling UI.
+        begin(entry.name, menu = false, scrollable = false)
+        root.setPadding(dp(6), dp(4), dp(6), dp(6))
         playingKind = entry.kind
         val view = PlayerView(this).apply {
             useController = true
             setBackgroundColor(Color.BLACK)
+            keepScreenOn = true
+            isFocusable = true
+            contentDescription = "Reprodutor de ${entry.name}"
         }
-        root.addView(view, LinearLayout.LayoutParams(-1, dp(280)))
+        root.addView(view, LinearLayout.LayoutParams(-1, 0, 1f))
         try {
             player = ExoPlayer.Builder(this).build().also {
                 view.player = it
@@ -1057,11 +1062,32 @@ class MainActivity : Activity() {
             while (history.size > 100) history.removeAt(history.lastIndex)
             getPreferences(MODE_PRIVATE).edit().putString("history", history.joinToString("\n")).apply()
         } catch (e: Exception) { toast("Não foi possível iniciar a reprodução") }
-        gap(16)
-        root.addView(text("${entry.kind}  •  ${entry.group}", 15f, false, muted))
-        gap(18)
-        button("VOLTAR PARA ${entry.kind.uppercase()}") { if (entry.kind == "TV ao Vivo") liveCatalog() else catalog(entry.kind) }
-        button("INÍCIO", panel) { home() }
+        val playbackActions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        root.addView(playbackActions, LinearLayout.LayoutParams(-1, dp(48)))
+        val backAction = text("‹  VOLTAR", 13f, true, orange).apply {
+            gravity = Gravity.CENTER
+            isFocusable = true
+            background = shape(panel, 8, orange)
+            setOnClickListener {
+                if (entry.kind == "TV ao Vivo") liveCatalog() else catalog(entry.kind)
+            }
+        }
+        playbackActions.addView(backAction, LinearLayout.LayoutParams(dp(115), dp(42)))
+        playbackActions.addView(text(entry.name, 14f, true).apply {
+            gravity = Gravity.CENTER
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            setPadding(dp(10), 0, dp(10), 0)
+        }, LinearLayout.LayoutParams(0, dp(42), 1f))
+        playbackActions.addView(text("INÍCIO", 13f, true, gold).apply {
+            gravity = Gravity.CENTER
+            isFocusable = true
+            background = shape(panel, 8, gold)
+            setOnClickListener { home() }
+        }, LinearLayout.LayoutParams(dp(85), dp(42)))
     }
 
     override fun onStart() {
