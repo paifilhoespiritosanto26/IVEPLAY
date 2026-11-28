@@ -73,10 +73,11 @@ class MainActivity : Activity() {
         root.addView(text("Restaurando lista M3U salva...", 17f, true, gold))
         thread {
             try {
-                val found = parseM3u(download(url))
+                val body = download(url)
+                val found = parseM3u(body)
                 runOnUiThread {
                     if (found.isEmpty()) {
-                        toast("A lista salva está vazia ou inválida. Conecte novamente.")
+                        toast(m3uFailureReason(body))
                         loginScreen()
                     } else {
                         xtreamSession = null
@@ -342,9 +343,10 @@ class MainActivity : Activity() {
                             toast("Conectando à lista M3U...")
                             thread {
                                 try {
-                                    val found = parseM3u(download(url))
+                                    val body = download(url)
+                                    val found = parseM3u(body)
                                     runOnUiThread {
-                                        if (found.isEmpty()) toast("Lista M3U vazia ou inválida. Verifique a URL e o formato.")
+                                        if (found.isEmpty()) toast(m3uFailureReason(body))
                                         else {
                                             xtreamSession = null
                                             items.clear()
@@ -846,10 +848,11 @@ class MainActivity : Activity() {
             thread {
                 try {
                     // Both network and parsing can be expensive for very large playlists.
-                    val found = parseM3u(download(link))
+                    val body = download(link)
+                    val found = parseM3u(body)
                     runOnUiThread {
                         if (found.isEmpty()) {
-                            toast("A URL respondeu, mas não trouxe canais M3U válidos. Confira o formato da lista.")
+                            toast(m3uFailureReason(body))
                         } else {
                             xtreamSession = null
                             items.clear()
@@ -977,6 +980,20 @@ class MainActivity : Activity() {
         is javax.net.ssl.SSLException -> "Falha na conexão segura HTTPS. Confira o servidor."
         is java.net.ConnectException -> "Servidor recusou a conexão ou está indisponível."
         else -> "Falha ao conectar: ${error.localizedMessage ?: "verifique a URL e o servidor"}"
+    }
+
+    private fun m3uFailureReason(body: String): String {
+        val clean = body.trimStart('\uFEFF', ' ', '\n', '\r', '\t')
+        return when {
+            clean.isBlank() -> "O servidor retornou uma lista vazia."
+            clean.startsWith("<!DOCTYPE", true) || clean.startsWith("<html", true) ->
+                "O servidor retornou uma página HTML, não uma lista M3U. Verifique o endereço e a autorização."
+            clean.startsWith("{") || clean.startsWith("[") ->
+                "O servidor retornou JSON, não uma lista M3U. Confira o endereço da playlist."
+            clean.contains("invalid", true) || clean.contains("unauthorized", true) ->
+                "O servidor recusou o acesso. Verifique a validade da sua lista."
+            else -> "Nenhum canal HTTP/HTTPS válido foi encontrado na resposta M3U."
+        }
     }
 
     private fun download(link: String): String {
