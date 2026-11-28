@@ -523,12 +523,14 @@ class MainActivity : Activity() {
     // Independently scrolling channel/category lists: no nested ScrollView gesture conflicts.
     private fun liveCatalog() {
         begin("TV ao Vivo", false)
+        // Avoid a parent ScrollView intercepting vertical swipes and TV remote navigation.
+        root.layoutParams = android.widget.FrameLayout.LayoutParams(-1, -1)
+        setContentView(root)
         val screen = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val screenHeight = (resources.displayMetrics.heightPixels / resources.displayMetrics.density).toInt().coerceAtLeast(270)
-        root.addView(screen, LinearLayout.LayoutParams(-1, dp(screenHeight - 30)))
+        root.addView(screen, LinearLayout.LayoutParams(-1, 0, 1f))
         val nav = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0); background = shape(panel, 10) }
-        val groupsList = ListView(this).apply { dividerHeight = dp(4); setBackgroundColor(bg); isFocusable = true }
-        val channelsList = ListView(this).apply { dividerHeight = dp(4); setBackgroundColor(bg); isFocusable = true }
+        val groupsList = ListView(this).apply { dividerHeight = dp(4); setBackgroundColor(bg); isFocusable = true; isFocusableInTouchMode = true }
+        val channelsList = ListView(this).apply { dividerHeight = dp(4); setBackgroundColor(bg); isFocusable = true; isFocusableInTouchMode = true }
         val preview = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), 0) }
         screen.addView(ScrollView(this).apply { addView(nav) }, LinearLayout.LayoutParams(0, -1, 1.2f))
         screen.addView(groupsList, LinearLayout.LayoutParams(0, -1, 1.6f))
