@@ -783,7 +783,7 @@ class MainActivity : Activity() {
         val channels = items.filter { it.kind == "TV ao Vivo" }.sortedWith(
             compareBy<MediaEntry> {
                 // Ignore leading channel numbers and separators when alphabetizing.
-                it.name.trim().replace(Regex("^\\\\d+[\\\\s._:|\\\\-]*"), "").ifBlank { it.name.trim() }
+                it.name.trim().replace(Regex("""^\d+[\s._:|\-]*"""), "").ifBlank { it.name.trim() }
                     .lowercase()
             }.thenBy { it.name.lowercase() }
         )
