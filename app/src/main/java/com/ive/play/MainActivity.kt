@@ -808,5 +808,16 @@ class MainActivity : Activity() {
 
     override fun onDestroy() { player?.release(); player = null; imageLoader.shutdownNow(); super.onDestroy() }
     @Deprecated("Deprecated in Java")
-    override fun onBackPressed() { if (player != null) home() else if (currentPage != "Início") home() else super.onBackPressed() }
+    override fun onBackPressed() {
+        when {
+            currentPage == "TV ao Vivo" -> home()
+            player != null && currentPage != "Início" -> liveCatalogIfChannelOrHome()
+            currentPage != "Início" -> home()
+            else -> super.onBackPressed()
+        }
+    }
+
+    private fun liveCatalogIfChannelOrHome() {
+        if (items.any { it.kind == "TV ao Vivo" && it.name == currentPage }) liveCatalog() else home()
+    }
 }
