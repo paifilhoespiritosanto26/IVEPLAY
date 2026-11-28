@@ -21,7 +21,9 @@ import androidx.media3.ui.PlayerView
 import org.json.JSONArray
 import org.json.JSONObject
 import android.graphics.BitmapFactory
-import java.util.concurrent.Executors
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -39,7 +41,8 @@ class MainActivity : Activity() {
     private val favorites = linkedSetOf<String>()
     private val history = mutableListOf<String>()
     private var xtreamSession: Triple<String, String, String>? = null
-    private val imageLoader = Executors.newFixedThreadPool(3)
+    private val imageLoader = ThreadPoolExecutor(3, 3, 0L, TimeUnit.MILLISECONDS,
+        ArrayBlockingQueue<Runnable>(48), ThreadPoolExecutor.DiscardOldestPolicy())
     private var drawerOpen = false
     private var currentPage = "Início"
     private var playingKind: String? = null
@@ -709,7 +712,7 @@ class MainActivity : Activity() {
     private fun loadPoster(target: ImageView, link: String) {
         if (!validUrl(link)) return
         target.tag = link
-        imageLoader.execute {
+        try { imageLoader.execute {
             try {
                 val conn = URL(link).openConnection() as HttpURLConnection
                 conn.connectTimeout = 8000
@@ -739,7 +742,7 @@ class MainActivity : Activity() {
                     if (target.tag == link && target.isAttachedToWindow) target.setImageBitmap(bitmap)
                 }
             } catch (_: Exception) { /* Unavailable artwork must not interrupt browsing. */ }
-        }
+        } } catch (_: java.util.concurrent.RejectedExecutionException) { /* Activity is closing. */ }
     }
 
     private fun seriesEpisodes(entry: MediaEntry) {
