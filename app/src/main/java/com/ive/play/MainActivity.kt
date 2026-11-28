@@ -42,6 +42,7 @@ class MainActivity : Activity() {
     private val imageLoader = Executors.newFixedThreadPool(3)
     private var drawerOpen = false
     private var currentPage = "Início"
+    private var playingKind: String? = null
 
     data class MediaEntry(val name: String, val url: String, val group: String, val kind: String = "TV ao Vivo", val image: String = "", val seriesId: String = "")
 
@@ -76,6 +77,7 @@ class MainActivity : Activity() {
         player?.release()
         player = null
         currentPage = page
+        if (page == "Início" || page == "TV ao Vivo" || page == "Menu") playingKind = null
         root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(12), dp(16), dp(30))
@@ -781,6 +783,7 @@ class MainActivity : Activity() {
         }
         if (entry.url.isBlank()) { toast("Conteúdo sem endereço de reprodução"); return }
         begin(entry.name)
+        playingKind = entry.kind
         val view = PlayerView(this).apply {
             useController = true
             setBackgroundColor(Color.BLACK)
@@ -818,6 +821,6 @@ class MainActivity : Activity() {
     }
 
     private fun liveCatalogIfChannelOrHome() {
-        if (items.any { it.kind == "TV ao Vivo" && it.name == currentPage }) liveCatalog() else home()
+        if (playingKind == "TV ao Vivo") liveCatalog() else home()
     }
 }
