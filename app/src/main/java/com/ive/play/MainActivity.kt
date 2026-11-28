@@ -13,6 +13,9 @@ import android.view.Gravity
 import android.view.View
 import android.widget.*
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.MimeTypes
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import org.json.JSONArray
@@ -403,7 +406,10 @@ class MainActivity : Activity() {
                                 val id = if (action == "get_series") obj.optString("series_id") else obj.optString("stream_id")
                                 if (id.isBlank()) continue
                                 when (action) {
-                                    "get_live_streams" -> found.add(MediaEntry(name, "$host/live/$u/$p/$id.ts", group, "TV ao Vivo", obj.optString("stream_icon")) )
+                                    "get_live_streams" -> {
+                                        val extension = if (obj.optString("container_extension").equals("m3u8", true)) "m3u8" else "ts"
+                                        found.add(MediaEntry(name, "$host/live/$u/$p/$id.$extension", group, "TV ao Vivo", obj.optString("stream_icon")))
+                                    }
                                     "get_vod_streams" -> {
                                         val ext = obj.optString("container_extension", "mp4").ifBlank { "mp4" }
                                         found.add(MediaEntry(name, "$host/movie/$u/$p/$id.$ext", group, "Filmes", obj.optString("stream_icon")) )
@@ -420,6 +426,21 @@ class MainActivity : Activity() {
                     }
                 } catch (e: Exception) { runOnUiThread { toast("Erro ao carregar: ${e.localizedMessage}") } }
             }
+    }
+
+    private fun mediaItem(link: String): MediaItem {
+        val clean = link.substringBefore('?').lowercase()
+        val builder = MediaItem.Builder().setUri(link)
+        if (clean.endsWith(".m3u8")) builder.setMimeType(MimeTypes.APPLICATION_M3U8)
+        return builder.build()
+    }
+
+    private fun attachPlaybackErrors(instance: ExoPlayer) {
+        instance.addListener(object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) {
+                toast("Falha ao reproduzir: ${error.errorCodeName}. Confira a transmissão e o acesso.")
+            }
+        })
     }
 
     private fun validUrl(value: String) = value.startsWith("https://", true) || value.startsWith("http://", true)
@@ -517,13 +538,14 @@ class MainActivity : Activity() {
                 setOnClickListener { navigate(page) }
             })
         }
-        val channels = items.filter { it.kind == "TV ao Vivo" }
+        val channels = items.filter { it.kind == "TV ao Vivo" }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
         val groups = channels.map { it.group.ifBlank { "Outros" } }.distinct().sortedWith(String.CASE_INSENSITIVE_ORDER)
         var selectedGroup: String? = null
         var selected: MediaEntry? = null
         val playerView = PlayerView(this).apply { useController = true; setBackgroundColor(Color.BLACK) }
         val playerTitle = text("Selecione um canal", 15f, true, orange)
         preview.addView(text("PRÉ-VISUALIZAÇÃO", 14f, true, orange))
+        preview.addView(text("${channels.size} canais carregados", 11f, false, muted))
         preview.addView(playerView, LinearLayout.LayoutParams(-1, dp(190)).apply { topMargin = dp(10) })
         preview.addView(playerTitle)
         preview.addView(text("Programação EPG não disponível nesta versão", 12f, false, muted))
@@ -542,7 +564,8 @@ class MainActivity : Activity() {
             try {
                 player = ExoPlayer.Builder(this).build().also {
                     playerView.player = it
-                    it.setMediaItem(MediaItem.fromUri(entry.url))
+                    attachPlaybackErrors(it)
+                    it.setMediaItem(mediaItem(entry.url))
                     it.prepare()
                     it.playWhenReady = true
                 }
