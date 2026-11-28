@@ -224,11 +224,21 @@ class MainActivity : Activity() {
     }
 
     private fun enterCatalog() {
-        val isTelevision = packageManager.hasSystemFeature("android.software.leanback") ||
-            packageManager.hasSystemFeature("android.hardware.type.television")
-        requestedOrientation = if (isTelevision) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-            else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        // IVEPLAY uses a landscape media-center layout on phones, TV and TV Box.
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         home()
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // AndroidManifest handles orientation changes, so rebuild responsive columns
+        // after the screen has actually rotated.
+        if (items.isNotEmpty()) {
+            when (currentPage) {
+                "Início" -> home()
+                "TV ao Vivo" -> liveCatalog()
+            }
+        }
     }
 
     private fun showMenu() {
