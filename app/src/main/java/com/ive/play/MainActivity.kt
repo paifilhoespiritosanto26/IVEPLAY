@@ -47,6 +47,7 @@ class MainActivity : Activity() {
     private var currentPage = "Início"
     private var playingKind: String? = null
     private var playbackOrigin: String? = null
+    private var currentPlayingUrl: String? = null
     private var sportsChannelPageIndex = 0
     private var sportsChannelQuery = ""
     private var sportsChannelSelectedUrl: String? = null
@@ -1401,6 +1402,7 @@ class MainActivity : Activity() {
         val origin = if (playbackOrigin == "Canais esportivos" && playingKind == "TV ao Vivo" && player != null) "Canais esportivos" else currentPage
         begin(entry.name, menu = false, scrollable = false)
         playbackOrigin = origin
+        currentPlayingUrl = entry.url
         root.setPadding(dp(6), dp(4), dp(6), dp(6))
         playingKind = entry.kind
         val view = PlayerView(this).apply {
@@ -1495,6 +1497,37 @@ class MainActivity : Activity() {
         homeAction.id = View.generateViewId()
         backAction.nextFocusRightId = homeAction.id
         homeAction.nextFocusLeftId = backAction.id
+    }
+
+    // Hardware channel +/- keys switch streams only during sports live-TV playback.
+    // DPAD arrows remain available for navigating player controls.
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (event.action == android.view.KeyEvent.ACTION_DOWN &&
+            event.repeatCount == 0 &&
+            playbackOrigin == "Canais esportivos" &&
+            playingKind == "TV ao Vivo" &&
+            player != null &&
+            currentPage != "Canais esportivos"
+        ) {
+            val direction = when (event.keyCode) {
+                android.view.KeyEvent.KEYCODE_CHANNEL_UP -> 1
+                android.view.KeyEvent.KEYCODE_CHANNEL_DOWN -> -1
+                else -> 0
+            }
+            if (direction != 0) {
+                val sportsList = filtered("Esportes")
+                    .filter { it.kind == "TV ao Vivo" && it.url.isNotBlank() }
+                    .sortedBy { it.name.lowercase(java.util.Locale.ROOT) }
+                val index = sportsList.indexOfFirst { it.url == currentPlayingUrl }
+                if (index >= 0 && sportsList.size > 1) {
+                    val next = sportsList[(index + direction + sportsList.size) % sportsList.size]
+                    sportsChannelSelectedUrl = next.url
+                    play(next)
+                }
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onStart() {
